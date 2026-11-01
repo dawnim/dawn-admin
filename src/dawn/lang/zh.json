@@ -1,0 +1,38 @@
+{
+  "fields": {
+    "horizon": {
+      "connection": "连接",
+      "queue": "队列",
+      "size": "等待任务",
+      "id": "标识",
+      "name": "名称",
+      "host": "主机",
+      "pid": "PID",
+      "environment": "环境",
+      "master_id": "主进程标识",
+      "queues": "队列",
+      "status": "状态",
+      "started_at": "启动时间",
+      "last_heartbeat_at": "最后心跳",
+      "worker_count": "工作进程数",
+      "supervisor_count": "管理进程数",
+      "job_id": "任务标识",
+      "job_name": "任务名称",
+      "window_start": "窗口开始",
+      "window_end": "窗口结束",
+      "kind": "类型",
+      "source": "来源",
+      "supervisor": "管理进程",
+      "processed": "已处理",
+      "failed": "失败",
+      "flush_at": "写入时间",
+      "metrics_window_ms": "统计窗口毫秒数",
+      "source_prefix": "来源前缀",
+      "source_host": "来源主机",
+      "source_environment": "来源环境",
+      "source_supervisor": "来源管理进程",
+      "runtime_ms": "耗时毫秒数",
+      "error_summary": "错误摘要"
+    }
+  }
+}

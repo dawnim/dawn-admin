@@ -1,0 +1,78 @@
+<template>
+  <dawn-search-bar
+    ref="searchBarRef"
+    v-model="formData"
+    label-width="100px"
+    :showExpand="false"
+    @reset="handleReset"
+    @search="handleSearch"
+    @expand="handleExpand"
+  >
+    <el-col v-bind="setSpan(6)">
+      <el-form-item :label="t('部门名称')" prop="name">
+        <el-input v-model="formData.name" :placeholder="t('请输入部门名称')" clearable />
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
+      <el-form-item :label="t('联系电话')" prop="phone">
+        <el-input v-model="formData.phone" :placeholder="t('请输入联系电话')" clearable />
+      </el-form-item>
+    </el-col>
+    <el-col v-bind="setSpan(6)">
+      <el-form-item :label="t('状态')" prop="status">
+        <dawn-select v-model="formData.status" dict="data_status" clearable />
+      </el-form-item>
+    </el-col>
+  </dawn-search-bar>
+</template>
+
+<script setup lang="ts">
+  import { $t as t } from '@/locales'
+  interface Props {
+    modelValue: Record<string, any>
+  }
+  interface Emits {
+    (e: 'update:modelValue', value: Record<string, any>): void
+    (e: 'search', params: Record<string, any>): void
+    (e: 'reset'): void
+  }
+  const props = defineProps<Props>()
+  const emit = defineEmits<Emits>()
+  // 展开/收起
+  const isExpanded = ref<boolean>(false)
+
+  // 表单数据双向绑定
+  const searchBarRef = ref()
+  const formData = computed({
+    get: () => props.modelValue,
+    set: (val) => emit('update:modelValue', val)
+  })
+
+  // 重置
+  function handleReset() {
+    searchBarRef.value?.ref.resetFields()
+    emit('reset')
+  }
+
+  // 搜索
+  async function handleSearch() {
+    emit('search', formData.value)
+  }
+
+  // 展开/收起
+  function handleExpand(expanded: boolean) {
+    isExpanded.value = expanded
+  }
+
+  // 栅格占据的列数
+  const setSpan = (span: number) => {
+    return {
+      span: span,
+      xs: 24, // 手机：满宽显示
+      sm: span >= 12 ? span : 12, // 平板：大于等于12保持，否则用半宽
+      md: span >= 8 ? span : 8, // 中等屏幕：大于等于8保持，否则用三分之一宽
+      lg: span,
+      xl: span
+    }
+  }
+</script>
