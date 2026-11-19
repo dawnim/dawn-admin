@@ -106,11 +106,11 @@
       columnsFactory: () => [
         { type: 'selection' },
         { prop: 'id', label: t('编号'), width: 100, align: 'center' },
-        { prop: 'username', label: t('登录用户') },
-        { prop: 'status', label: t('登录状态'), useSlot: true },
+        { prop: 'username', label: t('登录用户'), minWidth: 100 },
+        { prop: 'status', label: t('登录状态'), minWidth: 100, useSlot: true },
         { prop: 'location', label: t('地理位置'), minWidth: 180 },
-        { prop: 'ip', label: t('登录IP') },
-        { prop: 'message', label: t('登录信息'), showOverflowTooltip: true },
+        { prop: 'ip', label: t('登录IP'), minWidth: 140 },
+        { prop: 'message', label: t('登录信息'), minWidth: 120, showOverflowTooltip: true },
         {
           prop: 'created_at',
           label: t('登录时间'),

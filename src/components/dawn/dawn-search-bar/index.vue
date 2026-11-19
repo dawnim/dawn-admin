@@ -162,7 +162,11 @@
 
 <style lang="scss" scoped>
   .art-search-bar {
-    padding: 15px 20px 0;
+    padding: 12px 16px 0;
+
+    :deep(.el-form-item) {
+      margin-bottom: 12px;
+    }
 
     .action-column {
       flex: 1;

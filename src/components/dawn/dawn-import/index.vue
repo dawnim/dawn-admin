@@ -1,6 +1,6 @@
 <template>
-  <div class="dawn-import-wrap" @click="open">
-    <div class="trigger">
+  <div class="dawn-import-wrap">
+    <div class="trigger" @click="open">
       <slot>
         <ElButton :icon="Upload">
           {{ title }}
@@ -10,14 +10,39 @@
 
     <el-dialog
       v-model="visible"
-      :title="title"
-      :width="width"
+      :title="preview ? t('导入预览') : title"
+      :width="preview ? 'min(960px,96vw)' : width"
+      align-center
+      :show-close="!loading"
+      :close-on-press-escape="!loading"
       append-to-body
       destroy-on-close
       class="dawn-import-dialog"
       :close-on-click-modal="false"
     >
-      <div class="import-container">
+      <div v-if="preview" v-loading="loading" class="import-preview">
+        <ElText type="info" size="small" class="import-tip">
+          {{
+            t('按唯一字段覆盖CSV对应列，保留创建时间并自动更新修改时间；文件内重复以最后一行为准')
+          }}
+        </ElText>
+        <div class="import-file">
+          {{ selectedFile?.name }} · {{ t('共{count}条数据', { count: preview.rows.length }) }}
+        </div>
+        <ElTable :data="preview.rows" border max-height="min(420px,50vh)">
+          <ElTableColumn type="index" label="#" width="60" align="center" />
+          <ElTableColumn
+            v-for="(column, index) in preview.columns"
+            :key="column.key"
+            :label="column.label"
+            min-width="120"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">{{ row[index] }}</template>
+          </ElTableColumn>
+        </ElTable>
+      </div>
+      <div v-else v-loading="loading" class="import-container">
         <el-upload
           ref="uploadRef"
           class="upload-area"
@@ -25,6 +50,7 @@
           action="#"
           :accept="accept"
           :limit="1"
+          :disabled="loading"
           :auto-upload="true"
           :on-exceed="handleExceed"
           :on-remove="handleRemove"
@@ -49,6 +75,13 @@
           </el-link>
         </div>
       </div>
+      <template v-if="preview" #footer>
+        <ElButton :disabled="loading" @click="open">{{ t('重新选择') }}</ElButton>
+        <ElButton :disabled="loading" @click="visible = false">{{ t('取消') }}</ElButton>
+        <ElButton type="primary" :loading="loading" @click="confirmImport">
+          {{ t('确认导入') }}
+        </ElButton>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -56,6 +89,7 @@
 <script setup lang="ts">
   import { $t as t } from '@/locales'
   import request from '@/utils/http'
+  import type { ImportResult } from '@/dawn/types'
   import { ref, computed } from 'vue'
   import { UploadFilled, Upload, Download } from '@element-plus/icons-vue'
   import { ElMessage, genFileId } from 'element-plus'
@@ -87,7 +121,7 @@
   )
 
   const emit = defineEmits<{
-    success: [response: any]
+    success: [response: ImportResult]
     error: [error: any]
     'download-template': []
   }>()
@@ -96,6 +130,11 @@
   const loading = ref(false)
   const uploadRef = ref<UploadInstance>()
   const fileList = ref<UploadUserFile[]>([])
+  const selectedFile = ref<UploadRawFile>()
+  const preview = ref<{
+    columns: { key: string; label: string }[]
+    rows: string[][]
+  }>()
 
   const showTemplate = computed(() => {
     return props.downloadUrl
@@ -104,6 +143,8 @@
   const open = () => {
     visible.value = true
     fileList.value = []
+    selectedFile.value = undefined
+    preview.value = undefined
   }
 
   const handleExceed: UploadProps['onExceed'] = (files) => {
@@ -111,6 +152,7 @@
     const file = files[0] as UploadRawFile
     file.uid = genFileId()
     uploadRef.value!.handleStart(file)
+    uploadRef.value!.submit()
   }
 
   const handleRemove = () => {
@@ -128,17 +170,36 @@
       loading.value = true
       const data = new FormData()
       data.append('file', options.file)
-      const response = await request.post({
+      const result = await request.post<NonNullable<typeof preview.value>>({
         url: props.uploadUrl!,
+        params: { preview: true },
         data
       })
-      ElMessage.success(t('导入成功'))
-      emit('success', response)
-      visible.value = false
-      return response
+      selectedFile.value = options.file
+      preview.value = result
+      return result
     } catch (error: any) {
       emit('error', error)
       throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const confirmImport = async () => {
+    try {
+      loading.value = true
+      const data = new FormData()
+      data.append('file', selectedFile.value!)
+      const result = await request.post<ImportResult>({
+        url: props.uploadUrl!,
+        data
+      })
+      ElMessage.success(t('导入完成，新增{count}条，更新{updated}条', { ...result }))
+      emit('success', result)
+      visible.value = false
+    } catch (error) {
+      emit('error', error)
     } finally {
       loading.value = false
     }
@@ -172,6 +233,21 @@
 <style scoped lang="scss">
   .dawn-import-wrap {
     display: inline-block;
+  }
+
+  .import-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .import-file {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .import-tip {
+    align-self: flex-start;
   }
 
   .import-container {

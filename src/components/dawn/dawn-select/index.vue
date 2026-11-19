@@ -5,7 +5,7 @@
   <el-select
     v-model="modelValue"
     v-bind="$attrs"
-    :placeholder="placeholder"
+    :placeholder="placeholder || t('请选择')"
     :disabled="disabled"
     :clearable="clearable"
     :filterable="filterable"
@@ -36,6 +36,7 @@
 
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { useDictStore } from '@/store/modules/dict'
 
   defineOptions({ name: 'DawnSelect', inheritAttrs: false })
@@ -61,7 +62,6 @@
   }
 
   const props = withDefaults(defineProps<Props>(), {
-    placeholder: '请选择',
     disabled: false,
     clearable: true, // 下拉框默认开启清除，体验更好
     filterable: false, // 下拉框默认关闭搜索
@@ -74,6 +74,7 @@
   // 支持单选(string/number) 或 多选(Array)
   const modelValue = defineModel<string | number | Array<string | number>>()
 
+  const { t } = useI18n()
   const dictStore = useDictStore()
 
   // 判断能否转成数字

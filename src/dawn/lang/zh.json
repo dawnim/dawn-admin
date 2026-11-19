@@ -33,6 +33,13 @@
       "source_supervisor": "来源管理进程",
       "runtime_ms": "耗时毫秒数",
       "error_summary": "错误摘要"
+    },
+    "support_apps": {
+      "name": "应用名称"
+    },
+    "knowledge_entries": {
+      "question": "问题或标题",
+      "answer": "答案内容"
     }
   }
 }

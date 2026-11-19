@@ -7,6 +7,71 @@
     margin-top: 10px;
   }
 
+  // 三档密度统一作用于分页、树表和普通列表；多行内容仍可自然撑高。
+  :deep(.el-table) {
+    --art-table-row-height: 36px;
+    --art-table-control-size: 28px;
+    --art-table-font-size: 13px;
+    --art-table-line-height: 16px;
+    --art-table-cell-padding: 10px;
+
+    &.el-table--large {
+      --art-table-row-height: 40px;
+      --art-table-control-size: 32px;
+      --art-table-font-size: 14px;
+      --art-table-line-height: 18px;
+      --art-table-cell-padding: 12px;
+    }
+
+    &.el-table--small {
+      --art-table-row-height: 32px;
+      --art-table-control-size: 24px;
+      --art-table-font-size: 12px;
+      --art-table-line-height: 14px;
+      --art-table-cell-padding: 8px;
+    }
+
+    .el-table__cell {
+      box-sizing: border-box;
+      height: var(--art-table-row-height);
+      padding: 1px 0;
+    }
+
+    .cell {
+      padding-inline: var(--art-table-cell-padding);
+      font-size: var(--art-table-font-size);
+      line-height: var(--art-table-line-height);
+    }
+
+    .el-table__header .cell {
+      white-space: nowrap;
+    }
+
+    .el-table__body {
+      [role='button']:not(.el-button),
+      .el-button:not(.is-link, .is-text) {
+        min-width: var(--art-table-control-size);
+        height: var(--art-table-control-size) !important;
+        padding-inline: 6px;
+      }
+
+      .el-tag {
+        height: calc(var(--art-table-control-size) - 4px);
+        font-size: 12px;
+      }
+
+      .text-xs {
+        font-size: 12px;
+        line-height: var(--art-table-line-height);
+      }
+    }
+  }
+
+  :deep(.art-table-image) {
+    width: var(--art-table-control-size);
+    height: var(--art-table-control-size);
+  }
+
   :deep(.el-loading-mask) {
     z-index: 100;
     background-color: var(--default-box-color) !important;

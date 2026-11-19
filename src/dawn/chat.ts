@@ -1,7 +1,9 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { mittBus } from '@/utils/sys'
 
-export const chatUnread = ref(0)
+export const directUnread = ref(0)
+export const supportUnread = ref(0)
+export const chatUnread = computed(() => directUnread.value + supportUnread.value)
 export function openChat(user?: {
   id: number
   username: string

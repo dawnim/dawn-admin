@@ -2,7 +2,7 @@
   <ElDialog
     v-model="visible"
     :title="dialogType === 'add' ? t('新增') : t('编辑')"
-    width="600px"
+    :width="formWidth"
     align-center
     :close-on-click-modal="false"
     @closed="formRef?.clearValidate()"
@@ -31,8 +31,22 @@
             : []
         "
       >
+        <slot
+          v-if="column.formSlot && $slots[column.formSlot]"
+          :name="column.formSlot"
+          :form="formData"
+          :column="column"
+          :disabled="dialogType === 'edit' && column.immutable"
+        />
+        <DawnRadio
+          v-else-if="column.dict"
+          v-model="formData[column.prop]"
+          :dict="column.dict"
+          :value-type="column.dictValueType || 'number'"
+          :disabled="dialogType === 'edit' && column.immutable"
+        />
         <ElSelect
-          v-if="column.options"
+          v-else-if="column.options"
           v-model="formData[column.prop]"
           :disabled="dialogType === 'edit' && column.immutable"
         >
@@ -48,7 +62,11 @@
           v-model="formData[column.prop]"
           :disabled="dialogType === 'edit' && column.immutable"
         />
-        <ElSwitch v-else-if="column.type === 'boolean'" v-model="formData[column.prop]" />
+        <ElSwitch
+          v-else-if="column.type === 'boolean'"
+          v-model="formData[column.prop]"
+          :disabled="dialogType === 'edit' && column.immutable"
+        />
         <ElInput
           v-else
           v-model="formData[column.prop]"
@@ -92,6 +110,7 @@
     ElMessage,
     type FormInstance
   } from 'element-plus'
+  import DawnRadio from '@/components/dawn/dawn-radio/index.vue'
   import type { Column, CrudApi } from '../types'
   const { t } = useI18n()
   const props = defineProps<{
@@ -101,6 +120,7 @@
     columns: Column[]
     defaults: Record<string, any>
     api: CrudApi<any, any, any>
+    formWidth?: string | number
   }>()
   const emit = defineEmits<{ 'update:modelValue': [boolean]; success: [] }>()
   const visible = computed({
@@ -113,8 +133,11 @@
   const formData = reactive<Record<string, any>>({})
   watch(
     () => props.modelValue,
-    async (opened) => {
+    async (opened, _, onCleanup) => {
       if (!opened) return
+      let active = true
+      onCleanup(() => (active = false))
+      reading.value = false
       const defaults = Object.fromEntries(
         props.columns
           .filter((column) => !column.readonly)
@@ -128,11 +151,13 @@
       if (props.dialogType === 'edit' && props.data) {
         reading.value = true
         try {
-          Object.assign(formData, await props.api.get(props.data.id))
+          const row = await props.api.get(props.data.id)
+          if (!active) return
+          Object.assign(formData, row)
         } catch {
-          visible.value = false
+          if (active) visible.value = false
         } finally {
-          reading.value = false
+          if (active) reading.value = false
         }
       }
       props.columns
@@ -152,7 +177,10 @@
           .filter(
             (column) => !column.readonly && !(props.dialogType === 'edit' && column.immutable)
           )
-          .map((column) => [column.prop, formData[column.prop]])
+          .map((column) => [
+            column.prop,
+            column.nullable ? (formData[column.prop] ?? null) : formData[column.prop]
+          ])
       )
       if (props.dialogType === 'add') await props.api.create(input)
       else await props.api.update(props.data!.id, input)

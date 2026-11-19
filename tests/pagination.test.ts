@@ -30,6 +30,7 @@ test('实际表格hook在末页删除后重新取有效页，空页保持真实�
         table = useTable({
           core: {
             immediate: false,
+            apiParams: { page: 1, page_size: 20 },
             apiFn: async ({ page, page_size }: { page: number; page_size: number }) => {
               pages.push(page)
               const start = (page - 1) * page_size

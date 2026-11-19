@@ -313,4 +313,15 @@
     md:ml-0
     md:mr-2.5;
   }
+
+  @media (768px <= width <= 1180px) {
+    .button {
+      margin-right: 6px;
+    }
+
+    :deep(.el-button),
+    :deep(.el-radio-button__inner) {
+      padding-inline: 12px;
+    }
+  }
 </style>

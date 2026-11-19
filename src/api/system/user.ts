@@ -10,6 +10,10 @@ export default {
     request.put({ url: `/users/${id}/dashboard`, data: { dashboard } }),
   clearCache: (id: number) => request.del({ url: `/users/${id}/cache` }),
   sessions: (params: Record<string, any> = {}, config?: AxiosRequestConfig) =>
-    request.get<Api.Common.ApiPage>({ ...config, url: '/sessions', params }),
+    request.get<{ data: Record<string, any>[]; meta: { cursor: string } }>({
+      ...config,
+      url: '/sessions',
+      params
+    }),
   revoke: (id: string) => request.del({ url: `/sessions/${id}` })
 }

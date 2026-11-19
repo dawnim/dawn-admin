@@ -1,0 +1,194 @@
+/* 框架 Markdown 编辑器皮肤：与 Rhex 官网 1:1，颜色跟随宿主主题变量。 */
+.dawn-editor { display: flex; flex: 1; min-height: 0; flex-direction: column; }
+.dawn-editor *, .dawn-editor *::before, .dawn-editor *::after { box-sizing: border-box; }
+.dawn-editor button { cursor: pointer; color: inherit; background: transparent; border: 0; font: inherit; }
+.dawn-editor input { border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 8px; background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--text, var(--el-text-color-primary, #303133)); padding: 10px; outline: 0; font: inherit; }
+.dawn-editor input:focus { border-color: var(--accent, var(--el-color-primary, #409eff)); }
+.dawn-editor textarea { background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--text, var(--el-text-color-primary, #303133)); font: inherit; }
+.dawn-editor label { display: flex; flex-direction: column; gap: 7px; font-size: 12px; margin-bottom: 17px; }
+.dawn-editor .dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.dawn-editor .dialog-head h2 { margin: 0; font-size: 16px; }
+.dawn-editor .dialog-head button { display: grid; place-items: center; width: 28px; height: 28px; color: var(--muted, var(--el-text-color-secondary, #909399)); }
+.dawn-editor .dialog-head svg { width: 18px; height: 18px; }
+.dawn-editor .editor-help-dialog { overflow-y: auto; }
+.dawn-editor dialog:not([open]) { display: none; }
+.compose-editor-shell { display: flex; flex: 1; min-height: 180px; flex-direction: column; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 11px; background: var(--panel, var(--el-bg-color-overlay, #fff)); }
+.compose-editor-shell.post { box-shadow: 0 2px 12px #0000000a; }
+.compose-editor-shell.fullscreen { position: fixed; z-index: 30; inset: 16px; background: var(--panel, var(--el-bg-color-overlay, #fff)); box-shadow: 0 20px 80px #0005; }
+.editor-head { display: flex; align-items: center; gap: 14px; min-height: 42px; padding: 0 12px; border-bottom: 1px solid var(--line, var(--el-border-color, #dcdfe6)); }
+.editor-tabs { display: flex; align-items: stretch; gap: 18px; height: 42px; }
+.editor-tabs button { position: relative; padding: 0 2px; color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 12px; }
+.editor-tabs button.active { color: var(--text, var(--el-text-color-primary, #303133)); font-weight: 600; }
+.editor-tabs button.active::after { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; background: var(--text, var(--el-text-color-primary, #303133)); content: ""; }
+.editor-length, #moment-length { margin-left: auto; color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 11px; }
+.editor-icon { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 50%; color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 15px; }
+.editor-icon svg { width: 15px; height: 15px; }
+.editor-icon:hover { color: var(--text, var(--el-text-color-primary, #303133)); border-color: var(--accent, var(--el-color-primary, #409eff)); }
+.compose-editor { display: block; flex: 1; min-height: 0; }
+.compose-editor.post { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 0; }
+.compose-editor-shell.view-write .compose-editor.post, .compose-editor-shell.view-preview .compose-editor.post { display: block; }
+.compose-editor textarea { display: block; width: 100%; height: 100%; min-height: 0; overflow-y: auto; resize: none; border: 0 !important; border-radius: 0 !important; outline: 0; }
+.compose-editor.post textarea { border-right: 1px solid var(--line, var(--el-border-color, #dcdfe6)) !important; }
+.markdown-preview { height: 100%; min-height: 0; overflow-y: auto; padding: 11px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 7px; background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--text, var(--el-text-color-primary, #303133)); font-size: 13px; line-height: 1.75; }
+.compose-editor.post .markdown-preview { border: 0; border-radius: 0; }
+.markdown-preview:empty::before { content: "预览"; color: var(--muted, var(--el-text-color-secondary, #909399)); }
+.editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; min-height: 42px; padding: 5px 12px; border-top: 1px solid var(--line, var(--el-border-color, #dcdfe6)); color: var(--muted, var(--el-text-color-secondary, #909399)); }
+.editor-toolbar::-webkit-scrollbar { display: none; }
+.editor-tool-dropdown { position: relative; }
+.editor-toolbar button { color: inherit; font-size: 12px; }
+.editor-tool { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 30px; padding: 0 5px; border-radius: 7px; color: inherit; line-height: 1; vertical-align: middle; }
+.editor-tool:hover, .editor-tool-dropdown:focus-within > .editor-tool, .editor-tool.active { background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--text, var(--el-text-color-primary, #303133)); }
+.editor-tool-dropdown > .editor-tool { gap: 3px; }
+.editor-tool-dropdown > .editor-tool i { margin-left: 1px; color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 10px; font-style: normal; }
+.editor-heading-label { font: 12px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.editor-tooltip { position: fixed; z-index: 10000; display: grid; gap: 3px; min-width: 150px; max-width: 240px; padding: 8px 10px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 8px; background: var(--panel, var(--el-bg-color-overlay, #fff)); color: var(--text, var(--el-text-color-primary, #303133)); box-shadow: 0 10px 30px #0003; pointer-events: none; font-size: 11px; }
+.editor-tooltip strong { font-size: 12px; }
+.editor-tooltip kbd { width: fit-content; padding: 1px 4px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 4px; color: var(--muted, var(--el-text-color-secondary, #909399)); font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
+.editor-tooltip small { color: var(--muted, var(--el-text-color-secondary, #909399)); line-height: 1.4; }
+.editor-toolbar svg { width: 17px; height: 17px; }
+.editor-menu { position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; display: none; min-width: 132px; padding: 5px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 9px; background: var(--panel, var(--el-bg-color-overlay, #fff)); box-shadow: 0 12px 35px #0002; }
+.editor-menu.open { display: grid; gap: 2px; }
+.editor-menu button { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 30px; padding: 6px 9px; border-radius: 6px; text-align: left; white-space: nowrap; }
+.editor-menu button:hover { background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--text, var(--el-text-color-primary, #303133)); }
+.editor-menu button.active { background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--text, var(--el-text-color-primary, #303133)); }
+/* 原版 Rhex 的 link/table/media/spoiler 是锚定工具栏按钮的浮层，不是居中 modal：
+   无遮罩、无右上角 ×，上方空间更宽裕时往上弹，点外部或 ESC 收起。 */
+.editor-panel { position: fixed; z-index: 10000; width: 292px; max-width: calc(100vw - 24px); padding: 16px; overflow-y: auto; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 16px; background: var(--panel, var(--el-bg-color-overlay, #fff)); color: var(--text, var(--el-text-color-primary, #303133)); box-shadow: 0 18px 50px #0003; }
+.editor-panel[hidden] { display: none; }
+/* 浮层在后台挂在 body 上，不受 .dawn-editor 的 reset 管辖，自己收一遍 UA 按钮样式。 */
+.editor-panel :where(button) { cursor: pointer; border: 0; background: transparent; color: inherit; font: inherit; }
+.editor-panel :where(input) { box-sizing: border-box; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 10px; background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--text, var(--el-text-color-primary, #303133)); font: inherit; outline: 0; }
+.editor-panel :where(input):focus { border-color: var(--accent, var(--el-color-primary, #409eff)); }
+/* 只有 Markdown 帮助仍是模态 dialog；后台全局 reset 会清掉 UA 的 margin:auto。 */
+.editor-help-dialog[open] { position: fixed; inset: 0; margin: auto; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); overflow: auto; }
+.editor-help-dialog::backdrop { background: #0004; }
+.editor-help-dialog .dialog-head { margin-bottom: 16px; }
+.editor-popover-head { display: grid; gap: 4px; margin-bottom: 12px; }
+.editor-popover-head strong { font-size: 13px; font-weight: 600; }
+.editor-popover-head small { color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 11px; line-height: 1.6; }
+.editor-popover-fields { display: grid; gap: 8px; }
+.editor-popover-fields input { width: 100%; padding: 8px 10px; font-size: 12px; }
+.editor-popover-hint { min-height: 15px; margin: 8px 0 0; color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 11px; line-height: 1.6; }
+.editor-panel p { margin: 0; color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 12px; line-height: 1.7; }
+.editor-panel-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.editor-panel-actions button { min-height: 30px; padding: 4px 12px; border-radius: 999px; font-size: 12px; }
+.editor-popover-cancel { border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); color: var(--muted, var(--el-text-color-secondary, #909399)); }
+.editor-popover-cancel:hover { background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--text, var(--el-text-color-primary, #303133)); }
+.editor-panel-actions button.primary { border: 1px solid var(--text, var(--el-text-color-primary, #303133)); background: var(--text, var(--el-text-color-primary, #303133)); color: var(--panel, var(--el-bg-color-overlay, #fff)); }
+.editor-panel-actions button.primary:disabled { opacity: .4; cursor: not-allowed; }
+.editor-table-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; margin-top: 12px; padding: 12px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 12px; background: color-mix(in srgb, var(--text, var(--el-text-color-primary, #303133)) 4%, transparent); }
+/* 后台模板的浮层也在根节点内，`.dawn-editor button { border: 0 }` 权重高于
+   `.editor-table-cell`，必须挂父级提权才能显示 8×6 的淡网格。 */
+.editor-table-grid .editor-table-cell { aspect-ratio: 1; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 6px; background: transparent; cursor: pointer; }
+.editor-table-grid .editor-table-cell:hover, .editor-table-grid .editor-table-cell:focus-visible { border-color: var(--accent, var(--el-color-primary, #409eff)); }
+.editor-table-grid .editor-table-cell.selected { border-color: var(--accent, var(--el-color-primary, #409eff)); background: color-mix(in srgb, var(--accent, var(--el-color-primary, #409eff)) 30%, var(--panel, var(--el-bg-color-overlay, #fff))); }
+.editor-table-size { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 11px; font-variant-numeric: tabular-nums; }
+.editor-table-size svg { width: 14px; height: 14px; }
+.editor-choice-list { display: grid; gap: 8px; margin-top: 10px; }
+.editor-choice-list button { display: grid; gap: 3px; padding: 12px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 8px; text-align: left; }
+.editor-choice-list button:hover { border-color: var(--accent, var(--el-color-primary, #409eff)); background: color-mix(in srgb, var(--accent, var(--el-color-primary, #409eff)) 8%, var(--panel, var(--el-bg-color-overlay, #fff))); }
+.editor-choice-list strong { font-size: 13px; }
+.editor-choice-list small { color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 11px; }
+/* 表情浮层：锚定工具栏笑脸按钮，参考 Telegram 的分组标题 + 网格 + 底部分组栏。 */
+.editor-emoji-popover { position: fixed; z-index: 10000; width: min(348px, calc(100vw - 16px)); padding: 10px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 14px; background: var(--panel, var(--el-bg-color-overlay, #fff)); color: var(--text, var(--el-text-color-primary, #303133)); box-shadow: 0 18px 48px #0003; }
+.editor-emoji-popover[hidden] { display: none; }
+/* :where() 降权，避免 font:inherit 盖掉下面 item/tab 明确设置的字号。 */
+.editor-emoji-popover :where(button) { cursor: pointer; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; }
+.editor-emoji-head { display: flex; align-items: center; justify-content: flex-end; padding: 0 2px 6px; }
+.editor-emoji-close { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; color: var(--muted, var(--el-text-color-secondary, #909399)); }
+.editor-emoji-close svg { width: 14px; height: 14px; }
+.editor-emoji-close:hover { background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--text, var(--el-text-color-primary, #303133)); }
+/* 全部分组共用一个滚动容器：标题 sticky 成锚点，继续滚动自然跨到相邻分组。 */
+.editor-emoji-scroll { position: relative; height: 232px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.editor-emoji-anchor { position: sticky; z-index: 1; top: 0; margin: 0; padding: 3px 6px 5px; background: var(--panel, var(--el-bg-color-overlay, #fff)); color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 12px; font-weight: 600; line-height: 1.4; }
+/* 面板尺寸固定，靠去掉格子间隙 + 放大字号把空间还给表情本身。 */
+.editor-emoji-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 0; align-content: start; padding: 0 0 8px; }
+.editor-emoji-item { display: grid; place-items: center; aspect-ratio: 1; min-width: 0; border-radius: 6px; font: 31px/1 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
+.editor-emoji-item:hover, .editor-emoji-item:focus-visible { background: var(--bg, var(--el-fill-color-light, #f5f7fa)); }
+.editor-emoji-empty { grid-column: 1 / -1; margin: 0; padding: 26px 8px; color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 12px; text-align: center; }
+.editor-emoji-tabs { display: flex; gap: 2px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line, var(--el-border-color, #dcdfe6)); }
+.editor-emoji-tab { flex: 1; min-width: 0; height: 30px; border-radius: 8px; font: 19px/1 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; filter: grayscale(1); opacity: .55; }
+.editor-emoji-tab:hover { opacity: .9; background: var(--bg, var(--el-fill-color-light, #f5f7fa)); }
+.editor-emoji-tab.active { opacity: 1; filter: none; background: var(--bg, var(--el-fill-color-light, #f5f7fa)); box-shadow: inset 0 0 0 1px var(--line, var(--el-border-color, #dcdfe6)); }
+.editor-help-dialog { width: min(820px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 22px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 12px; background: var(--panel, var(--el-bg-color-overlay, #fff)); color: var(--text, var(--el-text-color-primary, #303133)); box-shadow: 0 18px 70px #0003; scrollbar-width: none; }
+.editor-help-dialog::-webkit-scrollbar { display: none; }
+.editor-help-content { line-height: 1.75; }
+.editor-help-content h1 { margin: 0 0 14px; font-size: 20px; }
+.editor-help-content h2 { margin: 22px 0 8px; font-size: 15px; }
+.editor-help-content blockquote { margin: 0; padding: 10px 12px; border-left: 3px solid var(--accent, var(--el-color-primary, #409eff)); background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 12px; }
+.editor-help-markdown { color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 12px; }
+.editor-help-markdown table { width: 100%; border-collapse: collapse; }
+.editor-help-markdown th, .editor-help-markdown td { padding: 6px 8px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); text-align: left; }
+.editor-help-markdown pre { position: relative; padding: 12px; border-radius: 8px; background: var(--bg, var(--el-fill-color-light, #f5f7fa)); overflow: auto; }
+.editor-copy { position: absolute; top: 7px; right: 7px; min-height: 24px; padding: 2px 8px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 5px; background: var(--panel, var(--el-bg-color-overlay, #fff)); color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 10px; }
+.editor-copy:hover { color: var(--text, var(--el-text-color-primary, #303133)); }
+.compose-editor { position: relative; }
+.editor-lines { position: absolute; z-index: 1; top: 0; bottom: 0; left: 0; width: 40px; padding: 11px 8px; overflow: hidden; border-right: 1px solid var(--line, var(--el-border-color, #dcdfe6)); background: var(--bg, var(--el-fill-color-light, #f5f7fa)); color: var(--muted, var(--el-text-color-secondary, #909399)); font: 12px/1.75 ui-monospace, Consolas, monospace; text-align: right; white-space: pre; pointer-events: none; }
+.compose-editor-shell:not(.post) .editor-lines, .compose-editor-shell.view-preview .editor-lines, .compose-editor-shell.view-live .editor-lines { display: none; }
+.compose-editor.post textarea { padding-left: 52px; font: 13px/1.75 ui-monospace, Consolas, monospace; }
+.editor-selection-bar { position: fixed; z-index: 10000; display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 18px; background: var(--panel, var(--el-bg-color-overlay, #fff)); box-shadow: 0 12px 32px #0003; }
+.editor-selection-bar button { min-width: 26px; height: 26px; border-radius: 5px; color: var(--text, var(--el-text-color-primary, #303133)); font-size: 12px; }
+.editor-selection-bar button:hover { background: var(--bg, var(--el-fill-color-light, #f5f7fa)); }
+.editor-selection-bar[hidden], .editor-mention-panel[hidden] { display: none; }
+.editor-mention-panel { position: absolute; z-index: 6; top: 40px; left: 60px; display: grid; min-width: 220px; max-height: 220px; overflow: auto; padding: 5px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 9px; background: var(--panel, var(--el-bg-color-overlay, #fff)); box-shadow: 0 12px 32px #0002; }
+.editor-mention { padding: 7px 9px; border-radius: 6px; color: var(--text, var(--el-text-color-primary, #303133)); font-size: 12px; text-align: left; }
+.editor-mention:hover { background: var(--bg, var(--el-fill-color-light, #f5f7fa)); }
+
+/* 单栏视图（编写 / 预览 / 动态格式）让输入区与预览铺满编辑区。
+   官网靠 .compose-dialog 的 width:100%，后台宿主没有；父级是 flex item 时
+   height:100% 也未必解析，textarea 会退回 cols=20 / rows=6 的默认尺寸。 */
+.compose-editor-shell.view-write .compose-editor > textarea:not([hidden]),
+.compose-editor-shell.view-preview .compose-editor > .markdown-preview:not([hidden]),
+.compose-editor-shell:not(.post) .compose-editor > textarea:not([hidden]) {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* 左右分栏时改用 grid item 拉伸，避免百分比高度在 grid 里出现偏差。 */
+.compose-editor-shell.view-live .compose-editor.post > textarea:not([hidden]),
+.compose-editor-shell.view-live .compose-editor.post > .markdown-preview:not([hidden]) {
+  height: auto;
+  min-height: 0;
+  align-self: stretch;
+}
+
+/* 官网弹窗内的定高与内层滚动（后台由宿主自行约束高度）。 */
+@media (max-width: 760px) {
+    .compose-editor-shell { min-height: 150px; }
+    .compose-editor.post { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+    .compose-editor .markdown-preview { margin-top: 0; min-height: 0; }
+    .compose-editor-shell.fullscreen { inset: 0; border: 0; border-radius: 0; }
+}
+@media (max-height: 700px) {
+    .editor-menu { top: auto; bottom: calc(100% + 6px); }
+}
+
+/* ── 图片附件区（微信式：媒体在编辑器下方，不在正文里） ───────────────── */
+.editor-attachments[hidden] { display: none; }
+.editor-attachments { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line, var(--el-border-color, #dcdfe6)); }
+.editor-attachments.dragover, .compose-editor-shell.dragover { outline: 2px dashed var(--accent, var(--el-color-primary, #409eff)); outline-offset: -3px; }
+.editor-attachment { position: relative; width: 64px; }
+.editor-attachment img { display: block; width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); cursor: zoom-in; }
+.editor-attachment small { display: block; overflow: hidden; max-width: 64px; margin-top: 3px; color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.editor-attachment.pending { opacity: .55; }
+.editor-attachment.error img { border-color: var(--el-color-danger, #f56c6c); }
+.editor-attachment-remove { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--el-color-danger, #f56c6c); color: #fff; font-size: 13px; line-height: 1; }
+.editor-attachment-add, .editor-custom-tool { width: 64px; height: 64px; border: 1px dashed var(--line, var(--el-border-color, #dcdfe6)); border-radius: 8px; color: var(--muted, var(--el-text-color-secondary, #909399)); font-size: 22px; }
+.editor-attachment-add:hover, .editor-custom-tool:hover { border-color: var(--accent, var(--el-color-primary, #409eff)); color: var(--accent, var(--el-color-primary, #409eff)); }
+.editor-tool.editor-custom-tool { display: grid; place-items: center; width: 30px; height: 30px; font-size: 15px; }
+.editor-tool.editor-custom-tool svg { width: 17px; height: 17px; }
+
+/* ── 我的图片浮层 ────────────────────────────────────────────────────── */
+.editor-image-toolbar { display: flex; gap: 6px; margin: 12px 0 8px; }
+.editor-image-toolbar input { flex: 1; min-width: 0; padding: 7px 9px; font-size: 12px; }
+.editor-image-upload { flex: none; padding: 0 12px; border-radius: 8px; background: var(--accent, var(--el-color-primary, #409eff)); color: #fff; font-size: 12px; }
+.editor-image-target { display: flex; gap: 6px; margin-bottom: 8px; }
+.editor-image-target[hidden] { display: none; }
+.editor-image-target button { flex: 1; padding: 6px 8px; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 8px; font-size: 11px; }
+.editor-image-target button.active { border-color: var(--accent, var(--el-color-primary, #409eff)); color: var(--accent, var(--el-color-primary, #409eff)); }
+.editor-image-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-height: 224px; overflow-y: auto; }
+.editor-library-item { aspect-ratio: 1; overflow: hidden; padding: 0; border: 1px solid var(--line, var(--el-border-color, #dcdfe6)); border-radius: 8px; }
+.editor-library-item:hover { border-color: var(--accent, var(--el-color-primary, #409eff)); }
+.editor-library-item img { display: block; width: 100%; height: 100%; object-fit: cover; }

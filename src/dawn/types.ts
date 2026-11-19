@@ -21,6 +21,10 @@ export interface Column {
   prop: string
   label: string
   type?: 'text' | 'number' | 'password' | 'select' | 'date' | 'boolean' | 'textarea'
+  /** 字典同时用于筛选、编辑和列表标签；未指定时使用原字段类型。 */
+  dict?: string
+  dictValueType?: 'number' | 'string'
+  nullable?: boolean
   options?: { label: string; value: string | number }[]
   keep_alive?: boolean
   fixed_tab?: boolean
@@ -30,6 +34,8 @@ export interface Column {
   required?: boolean
   maxlength?: number
   immutable?: boolean
+  /** 指定后由 CrudPage 的同名 form 插槽渲染该字段控件。 */
+  formSlot?: string
 }
 
 export function dateLabel(value: number) {
@@ -63,4 +69,9 @@ export interface CrudApi<
   replace: (id: string | number, input: Create) => Promise<T>
   remove: (id: string | number) => Promise<void>
   removeMany: (ids: (string | number)[]) => Promise<void>
+}
+/** CSV导入结果，按实际处理的数据行计数。 */
+export interface ImportResult {
+  count: number
+  updated: number
 }

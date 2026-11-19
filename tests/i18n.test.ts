@@ -53,6 +53,8 @@ test('中文原文key和英文占位符完整', () => {
   for (const entry of readdirSync('src', { recursive: true, withFileTypes: true })) {
     if (!entry.isFile() || !/\.(ts|vue)$/.test(entry.name)) continue
     const file = `${entry.parentPath}/${entry.name}`
+    // dawn 内核的文案由自身 TEXT 表管理，不进 i18n 语言包。
+    if (file.endsWith('/dawn/editor.ts')) continue
     for (const match of readFileSync(file, 'utf8').matchAll(
       /(?:\$t|\bt|\bte)\('([^']+)'(?:,|\))/g
     )) {

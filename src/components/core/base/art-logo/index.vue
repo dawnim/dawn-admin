@@ -33,7 +33,10 @@
     size: 36
   })
 
-  const logoStyle = computed(() => ({ width: `${props.size}px`, height: `${props.size}px` }))
+  const logoStyle = computed(() => ({
+    width: `var(--art-table-control-size, ${props.size}px)`,
+    height: `var(--art-table-control-size, ${props.size}px)`
+  }))
 </script>
 
 <style scoped>

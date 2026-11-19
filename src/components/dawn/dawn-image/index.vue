@@ -5,7 +5,8 @@
     preview-teleported
   >
     <template #error
-      ><slot name="error"><ArtSvgIcon icon="ri:image-line" /></slot
+      ><slot name="error"
+        ><div class="dawn-image-error"><ArtSvgIcon icon="ri:image-line" /></div></slot
     ></template>
   </ElImage>
 </template>
@@ -17,3 +18,18 @@
   })
   const images = useImageUrls(() => [props.src, ...props.previewSrcList])
 </script>
+
+<style scoped>
+  .dawn-image-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 18px;
+    color: var(--el-text-color-placeholder);
+    background: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: inherit;
+  }
+</style>

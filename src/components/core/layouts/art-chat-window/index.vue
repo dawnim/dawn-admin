@@ -1,22 +1,50 @@
 <template>
   <ElDrawer
     v-model="visible"
-    :size="isMobile ? '100%' : '420px'"
+    :size="
+      isMobile || mode === 'fullscreen'
+        ? '100%'
+        : canSupport && mode !== 'direct'
+          ? 'min(1240px, 96vw)'
+          : '420px'
+    "
     :with-header="false"
     class="wechat-drawer"
   >
-    <section class="wechat-chat" :class="{ 'is-dark': settingStore.isDark }">
+    <section
+      class="wechat-chat"
+      :class="{ 'is-dark': settingStore.isDark, 'has-support': canSupport }"
+    >
       <header class="chat-header">
         <button
-          v-if="current || contactsVisible"
+          v-if="!canSupport && mode === 'direct' && (current || contactsVisible)"
           class="header-action"
           :aria-label="t('返回')"
           @click="current ? (current = undefined) : (contactsVisible = false)"
         >
           <ArtSvgIcon icon="ri:arrow-left-s-line" />
         </button>
+        <div
+          v-else-if="canSupport"
+          class="agent-summary"
+          :title="user.info.realname || user.info.username"
+        >
+          <ArtAvatar
+            :src="user.info.avatar"
+            :size="36"
+            :alt="user.info.realname || user.info.username"
+          />
+          <div class="agent-statistics">
+            <span
+              >{{ t('今日回复消息数') }}<b>{{ statistics.replies }}</b></span
+            >
+            <span
+              >{{ t('今日接待客户数') }}<b>{{ statistics.customers }}</b></span
+            >
+          </div>
+        </div>
         <span v-else class="header-action" />
-        <h2>{{
+        <h2 v-if="!canSupport">{{
           current
             ? current.realname || current.username
             : contactsVisible
@@ -24,6 +52,16 @@
               : t('聊天')
         }}</h2>
         <div class="header-tools">
+          <button
+            v-if="canSupport"
+            class="mode-capsule"
+            :title="t('切换私聊、客服或全屏')"
+            @click="mode = modes[mode].next"
+          >
+            <ArtSvgIcon :icon="modes[mode].icon" />
+            <span>{{ t(modes[mode].label) }}</span>
+            <ArtSvgIcon icon="ri:arrow-left-right-line" />
+          </button>
           <button
             class="header-action theme-action"
             :aria-label="settingStore.isDark ? t('切换至亮色') : t('切换至暗色')"
@@ -39,164 +77,185 @@
           /></button>
         </div>
       </header>
-      <template v-if="!current">
-        <div class="chat-search">
-          <ElInput
-            v-if="contactsVisible"
-            v-model="search"
-            clearable
-            :placeholder="t('搜索管理员')"
-            @keyup.enter="loadContacts()"
-          >
-            <template #prefix><ArtSvgIcon icon="ri:search-line" /></template>
-          </ElInput>
-          <template v-else>
-            <button
-              class="search-entry"
-              @click="
-                () => {
-                  contactsVisible = true
-                  loadContacts()
-                }
-              "
-              ><ArtSvgIcon icon="ri:search-line" />{{ t('搜索联系人') }}</button
-            >
-          </template>
-        </div>
-        <div
-          class="conversation-list"
-          v-loading="
-            contactsVisible
-              ? loadingContacts && !contacts.length
-              : loadingList && !conversations.length
-          "
+      <SupportPanel
+        v-if="canSupport"
+        v-show="mode !== 'direct'"
+        :active="visible && mode !== 'direct'"
+        :can-reply="canReply"
+        @statistics="statistics = $event"
+      />
+      <div v-show="mode === 'direct'" class="direct-chat-body">
+        <button
+          v-if="canSupport && (current || contactsVisible)"
+          class="direct-back"
+          @click="current ? (current = undefined) : (contactsVisible = false)"
+          ><ArtSvgIcon icon="ri:arrow-left-line" />{{ t('返回')
+          }}<b v-if="current" class="direct-peer">{{
+            current.realname || current.username
+          }}</b></button
         >
-          <template v-if="contactsVisible">
-            <ElEmpty v-if="!contacts.length && !loadingContacts" :description="t('暂无联系人')" />
-            <button
-              v-for="item in contacts"
-              :key="item.id"
-              class="conversation-row"
-              @click="open({ ...item, user_id: item.id })"
+        <template v-if="!current">
+          <div class="chat-search">
+            <ElInput
+              v-if="contactsVisible"
+              v-model="search"
+              clearable
+              :placeholder="t('搜索管理员')"
+              @keyup.enter="loadContacts()"
             >
-              <span class="chat-avatar"
-                ><ArtAvatar v-if="item.avatar" :src="item.avatar" :size="44" /><span v-else>{{
-                  (item.realname || item.username).slice(0, 1)
-                }}</span></span
+              <template #prefix><ArtSvgIcon icon="ri:search-line" /></template>
+            </ElInput>
+            <template v-else>
+              <button
+                class="search-entry"
+                @click="
+                  () => {
+                    contactsVisible = true
+                    loadContacts()
+                  }
+                "
+                ><ArtSvgIcon icon="ri:search-line" />{{ t('搜索联系人') }}</button
               >
-              <span class="conversation-copy"
-                ><span class="conversation-name">{{ item.realname || item.username }}</span
-                ><span class="conversation-preview">{{ item.username }}</span></span
-              >
-            </button>
-            <button
-              v-if="contacts.length < contactsTotal"
-              class="load-more"
-              @click="loadContacts(contactsPage + 1)"
-              >{{ t('加载更多') }}</button
-            >
-          </template>
-          <template v-else>
-            <ElEmpty v-if="!conversations.length && !loadingList" :description="t('暂无会话')" />
-            <button
-              v-for="item in conversations"
-              :key="item.id"
-              class="conversation-row"
-              @click="select(item)"
-            >
-              <span class="chat-avatar"
-                ><ArtAvatar v-if="item.avatar" :src="item.avatar" :size="44" /><span v-else>{{
-                  (item.realname || item.username).slice(0, 1)
-                }}</span
-                ><b v-if="item.unread" class="unread-badge">{{
-                  item.unread > 99 ? '99+' : item.unread
-                }}</b></span
-              >
-              <span class="conversation-copy"
-                ><span class="conversation-top"
-                  ><span class="conversation-name">{{ item.realname || item.username }}</span
-                  ><time>{{
-                    item.last_message_at
-                      ? new Date(item.last_message_at).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })
-                      : ''
-                  }}</time></span
-                ><span class="conversation-preview">{{ item.content || t('暂无消息') }}</span></span
-              >
-            </button>
-            <button
-              v-if="conversations.length < total"
-              class="load-more"
-              @click="loadList(page + 1)"
-              >{{ t('加载更多') }}</button
-            >
-          </template>
-        </div>
-      </template>
-      <template v-else>
-        <div ref="messageContainer" class="message-list" @scroll="markRead">
-          <button
-            v-if="hasMore"
-            class="load-more"
-            :disabled="loadingHistory"
-            @click="loadMessages(true)"
-            >{{ t('加载更早消息') }}</button
+            </template>
+          </div>
+          <div
+            class="conversation-list"
+            v-loading="
+              contactsVisible
+                ? loadingContacts && !contacts.length
+                : loadingList && !conversations.length
+            "
           >
-          <ElEmpty v-if="!messages.length && !loadingHistory" :description="t('暂无消息')" />
-          <template v-for="(message, index) in messages" :key="message.request_id">
-            <div
-              v-if="!index || message.created_at - messages[index - 1].created_at > 300000"
-              class="message-time"
-              >{{ dateLabel(message.created_at) }}</div
-            >
-            <div class="message-row" :class="{ mine: isMe(message) }">
-              <span class="chat-avatar message-avatar"
-                ><ArtAvatar
-                  v-if="isMe(message) ? user.info.avatar : current.avatar"
-                  :src="isMe(message) ? user.info.avatar : current.avatar"
-                  :size="38"
-                /><span v-else>{{
-                  (isMe(message)
-                    ? user.info.realname || user.info.username || ''
-                    : current.realname || current.username
-                  ).slice(0, 1)
-                }}</span></span
+            <template v-if="contactsVisible">
+              <ElEmpty v-if="!contacts.length && !loadingContacts" :description="t('暂无联系人')" />
+              <button
+                v-for="item in contacts"
+                :key="item.id"
+                class="conversation-row"
+                @click="open({ ...item, user_id: item.id })"
               >
-              <div class="message-copy">
-                <div class="message-bubble">{{ message.content }}</div>
-                <div v-if="isMe(message)" class="message-status">
-                  <span v-if="message.status === 'sending'">{{ t('发送中') }}</span>
-                  <button
-                    v-else-if="message.status === 'failed'"
-                    class="retry-message"
-                    @click="deliver(message)"
-                    >{{ t('发送失败，点击重试') }}</button
-                  >
-                  <span v-else>{{
-                    message.id <= current.peer_last_read_message_id ? t('已读') : t('已发送')
-                  }}</span>
+                <span class="chat-avatar"
+                  ><ArtAvatar v-if="item.avatar" :src="item.avatar" :size="44" /><span v-else>{{
+                    (item.realname || item.username).slice(0, 1)
+                  }}</span></span
+                >
+                <span class="conversation-copy"
+                  ><span class="conversation-name">{{ item.realname || item.username }}</span
+                  ><span class="conversation-preview">{{ item.username }}</span></span
+                >
+              </button>
+              <button
+                v-if="contacts.length < contactsTotal"
+                class="load-more"
+                @click="loadContacts(contactsPage + 1)"
+                >{{ t('加载更多') }}</button
+              >
+            </template>
+            <template v-else>
+              <ElEmpty v-if="!conversations.length && !loadingList" :description="t('暂无会话')" />
+              <button
+                v-for="item in conversations"
+                :key="item.id"
+                class="conversation-row"
+                @click="select(item)"
+              >
+                <span class="chat-avatar"
+                  ><ArtAvatar v-if="item.avatar" :src="item.avatar" :size="44" /><span v-else>{{
+                    (item.realname || item.username).slice(0, 1)
+                  }}</span
+                  ><b v-if="item.unread" class="unread-badge">{{
+                    item.unread > 99 ? '99+' : item.unread
+                  }}</b></span
+                >
+                <span class="conversation-copy"
+                  ><span class="conversation-top"
+                    ><span class="conversation-name">{{ item.realname || item.username }}</span
+                    ><time>{{
+                      item.last_message_at
+                        ? new Date(item.last_message_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : ''
+                    }}</time></span
+                  ><span class="conversation-preview">{{
+                    item.content || t('暂无消息')
+                  }}</span></span
+                >
+              </button>
+              <button
+                v-if="conversations.length < total"
+                class="load-more"
+                @click="loadList(page + 1)"
+                >{{ t('加载更多') }}</button
+              >
+            </template>
+          </div>
+        </template>
+        <template v-else>
+          <div ref="messageContainer" class="message-list" @scroll="markRead">
+            <button
+              v-if="hasMore"
+              class="load-more"
+              :disabled="loadingHistory"
+              @click="loadMessages(true)"
+              >{{ t('加载更早消息') }}</button
+            >
+            <ElEmpty v-if="!messages.length && !loadingHistory" :description="t('暂无消息')" />
+            <template v-for="(message, index) in messages" :key="message.request_id">
+              <div
+                v-if="!index || message.created_at - messages[index - 1].created_at > 300000"
+                class="message-time"
+                >{{ dateLabel(message.created_at) }}</div
+              >
+              <div class="message-row" :class="{ mine: isMe(message) }">
+                <span class="chat-avatar message-avatar"
+                  ><ArtAvatar
+                    v-if="isMe(message) ? user.info.avatar : current.avatar"
+                    :src="isMe(message) ? user.info.avatar : current.avatar"
+                    :size="38"
+                  /><span v-else>{{
+                    (isMe(message)
+                      ? user.info.realname || user.info.username || ''
+                      : current.realname || current.username
+                    ).slice(0, 1)
+                  }}</span></span
+                >
+                <div class="message-copy">
+                  <div class="message-bubble"><ChatText :text="message.content" /></div>
+                  <div v-if="isMe(message)" class="message-status">
+                    <span v-if="message.status === 'sending'">{{ t('发送中') }}</span>
+                    <button
+                      v-else-if="message.status === 'failed'"
+                      class="retry-message"
+                      @click="deliver(message)"
+                      >{{ t('发送失败，点击重试') }}</button
+                    >
+                    <span v-else>{{
+                      message.id <= current.peer_last_read_message_id ? t('已读') : t('已发送')
+                    }}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </template>
-        </div>
-        <footer class="chat-composer">
-          <ElInput
-            v-model="content"
-            type="textarea"
-            :autosize="{ minRows: 1, maxRows: 4 }"
-            resize="none"
-            maxlength="4000"
-            :placeholder="t('输入消息')"
-            @keydown="handleKey"
-          />
-          <button class="send-message" :disabled="!content.trim()" @click="send">{{
-            t('发送')
-          }}</button>
-        </footer>
-      </template>
+            </template>
+          </div>
+          <footer class="chat-composer"
+            ><ChatEmoji @select="content += $event" />
+            <ElInput
+              v-model="content"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 4 }"
+              resize="none"
+              maxlength="4000"
+              :placeholder="t('输入消息')"
+              @keydown="handleKey"
+            />
+            <button class="send-message" :disabled="!content.trim()" @click="send">{{
+              t('发送')
+            }}</button>
+          </footer>
+        </template>
+      </div>
     </section>
   </ElDrawer>
 </template>
@@ -205,7 +264,9 @@
   import { useWindowSize, useDocumentVisibility, useDebounceFn } from '@vueuse/core'
   import { useI18n } from 'vue-i18n'
   import { chatApi, type Conversation, type ChatMessage, type ChatContact } from '@/api/chat'
-  import { chatUnread } from '@/dawn/chat'
+  import { directUnread, supportUnread } from '@/dawn/chat'
+  import SupportPanel from './SupportPanel.vue'
+  import { supportApi } from '@/api/support'
   import { dateLabel } from '@/dawn/types'
   import { realtime } from '@/dawn/realtime'
   import { mittBus } from '@/utils/sys'
@@ -214,6 +275,8 @@
   import { useTheme } from '@/hooks/core/useTheme'
   import { SystemThemeEnum } from '@/enums/appEnum'
 
+  import ChatEmoji from './ChatEmoji.vue'
+  import ChatText from './ChatText.vue'
   defineOptions({ name: 'ArtChatWindow' })
   const { t } = useI18n()
   const user = useUserStore()
@@ -222,7 +285,45 @@
   const { width } = useWindowSize()
   const documentVisibility = useDocumentVisibility()
   const isMobile = computed(() => width.value < 640)
+  const refreshSupportUnread = useDebounceFn(
+    async () => {
+      if (canSupport.value) {
+        const result = await supportApi.inbox({ page_size: 1 })
+        supportUnread.value = result.meta.unread_total
+        statistics.value = result.meta.statistics
+      }
+    },
+    300,
+    { maxWait: 1500 }
+  )
   const visible = ref(false)
+  const statistics = ref({ replies: 0, customers: 0 })
+  const modes = {
+    direct: { label: '私聊', icon: 'ri:chat-3-line', next: 'support' },
+    support: { label: '客服', icon: 'ri:customer-service-2-line', next: 'fullscreen' },
+    fullscreen: { label: '全屏', icon: 'ri:expand-diagonal-line', next: 'direct' }
+  } as const
+  const canSupport = ref(false),
+    canReply = ref(false),
+    mode = ref<keyof typeof modes>('direct')
+  watch(
+    () => user.info.id,
+    async (id) => {
+      if (!id) {
+        canSupport.value = false
+        canReply.value = false
+        return
+      }
+      const result = await supportApi.capabilities()
+      canSupport.value = result.view
+      canReply.value = result.reply
+      if (result.view) {
+        mode.value = 'support'
+        void refreshSupportUnread()
+      }
+    },
+    { immediate: true }
+  )
   const current = ref<Conversation>()
   const contactsVisible = ref(false)
   const contacts = ref<ChatContact[]>([])
@@ -271,7 +372,7 @@
       conversations.value = nextPage === 1 ? result.data : [...conversations.value, ...result.data]
       page.value = nextPage
       total.value = result.meta.total
-      chatUnread.value = result.meta.unread_total
+      directUnread.value = result.meta.unread_total
       const updated = conversations.value.find((item) => item.id === current.value?.id)
       if (updated && current.value) current.value = updated
     } finally {
@@ -322,7 +423,7 @@
     }
     if (subject === String(user.info.id) && row) {
       if (messageId >= row.last_message_id) {
-        chatUnread.value = Math.max(0, chatUnread.value - row.unread)
+        directUnread.value = Math.max(0, directUnread.value - row.unread)
         row.unread = 0
       } else void refreshList()
     }
@@ -408,6 +509,7 @@
     const revision = ++opening
     visible.value = true
     contactsVisible.value = false
+    mode.value = peer || !canSupport.value ? 'direct' : 'support'
     if (peer) {
       const conversation = await chatApi.create(peer.user_id)
       if (revision !== opening) return
@@ -463,6 +565,11 @@
         }
       })
   )
+  stops.push(
+    realtime.on('support.inbox.updated', () => {
+      void refreshSupportUnread()
+    })
+  )
   watch([visible, documentVisibility], () => {
     void markRead()
   })
@@ -474,10 +581,92 @@
     ++contactsRevision
     mittBus.off('openChat', open)
     stops.forEach((stop) => stop())
-    chatUnread.value = 0
+    directUnread.value = 0
+    supportUnread.value = 0
   })
 </script>
 <style scoped>
+  .has-support .header-tools {
+    gap: 3px;
+    align-items: center;
+  }
+  .has-support .chat-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 68px;
+  }
+  .agent-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .agent-statistics {
+    display: grid;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--chat-muted);
+  }
+  .agent-statistics span {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    white-space: nowrap;
+  }
+  .agent-statistics b {
+    color: var(--chat-text);
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .mode-capsule {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 88px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--chat-line);
+    border-radius: 18px;
+    background: var(--chat-panel);
+    color: var(--chat-text);
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .mode-capsule:hover {
+    background: var(--chat-hover);
+  }
+  .mode-capsule .art-svg-icon {
+    font-size: 15px;
+  }
+  .mode-capsule .art-svg-icon:last-child {
+    font-size: 12px;
+    color: var(--chat-muted);
+  }
+  .direct-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: var(--chat-header);
+    border: 0;
+    color: var(--chat-muted);
+    font-size: 12px;
+  }
+  .direct-peer {
+    margin-left: auto;
+    color: var(--chat-text);
+    font-weight: 600;
+  }
+  .direct-chat-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
   :global(.wechat-drawer .el-drawer__body) {
     padding: 0;
     overflow: hidden;

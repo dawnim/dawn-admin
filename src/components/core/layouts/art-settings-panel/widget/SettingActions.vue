@@ -13,12 +13,10 @@
 </template>
 
 <script setup lang="ts">
-  import { nextTick } from 'vue'
   import { useSettingStore } from '@/store/modules/setting'
   import { SETTING_DEFAULT_CONFIG } from '@/config/setting'
   import { useClipboard } from '@vueuse/core'
   import { useI18n } from 'vue-i18n'
-  import { MenuThemeEnum } from '@/enums/appEnum'
   import { useTheme } from '@/hooks/core/useTheme'
 
   defineOptions({ name: 'SettingActions' })
@@ -163,7 +161,7 @@
   /**
    * 重置配置为默认值
    */
-  const handleResetConfig = async () => {
+  const handleResetConfig = () => {
     try {
       const config = SETTING_DEFAULT_CONFIG
 
@@ -176,10 +174,7 @@
       // 主题相关 - 使用 switchThemeStyles 确保正确处理 AUTO 模式
       switchThemeStyles(config.systemThemeMode)
 
-      // 等待主题切换完成后，根据实际应用的主题设置菜单主题
-      await nextTick()
-      const menuTheme = settingStore.isDark ? MenuThemeEnum.DARK : config.menuThemeType
-      settingStore.switchMenuStyles(menuTheme)
+      settingStore.switchMenuStyles(config.menuThemeType)
 
       settingStore.setElementTheme(config.systemThemeColor)
 

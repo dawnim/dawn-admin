@@ -10,10 +10,15 @@ import { dawnConfig, type Options } from './dawn/config'
 import AppConfig from './config'
 import './assets/styles/core/tailwind.css'
 import './assets/styles/index.scss'
+import './dawn/markdown.css'
+import './dawn/editor.css'
 
 export { default as ArtTable } from './components/core/tables/art-table/index.vue'
 export { default as ArtTableHeader } from './components/core/tables/art-table-header/index.vue'
 export { default as DawnSearchBar } from './components/dawn/dawn-search-bar/index.vue'
+export { default as DawnSelect } from './components/dawn/dawn-select/index.vue'
+export { default as DawnRadio } from './components/dawn/dawn-radio/index.vue'
+export { default as DawnDict } from './components/dawn/dawn-dict/index.vue'
 export { default as DawnButton } from './components/dawn/dawn-button/index.vue'
 export { default as DawnImport } from './components/dawn/dawn-import/index.vue'
 export { default as DawnExport } from './components/dawn/dawn-export/index.vue'
@@ -21,7 +26,7 @@ export { useTable } from './hooks/core/useTable'
 export { useAdmin } from './composables/useAdmin'
 export { useAuth } from './hooks/core/useAuth'
 export { dateLabel } from './dawn/types'
-export type { Column, CrudApi, PageData, ListQuery } from './dawn/types'
+export type { Column, CrudApi, PageData, ListQuery, ImportResult } from './dawn/types'
 export { default as request } from './utils/http'
 export { default as ArtBarChart } from './components/core/charts/art-bar-chart/index.vue'
 export { default as ArtLineChart } from './components/core/charts/art-line-chart/index.vue'
@@ -33,6 +38,21 @@ export { default as WorkDashboard } from './views/dashboard/work/index.vue'
 export { default as CrudPage } from './dawn/CrudPage.vue'
 export { default as Upload } from './dawn/Upload.vue'
 export { openChat } from './dawn/chat'
+export { renderChatMarkdown, renderMarkdown, enhanceMarkdown } from './dawn/markdown'
+export { createMarkdownEditor, editorTemplate, renderEditorIcons } from './dawn/editor'
+export type {
+  EditorConfig,
+  EditorFormat,
+  EditorImage,
+  EditorImageLibrary,
+  EditorImageUploader,
+  EditorOptions,
+  EditorTool,
+  EditorView,
+  ImageTarget,
+  MentionItem,
+  MarkdownEditor
+} from './dawn/editor'
 export { realtime } from './dawn/realtime'
 export type { RealtimeMessage, RealtimeHandler } from './dawn/realtime'
 export type { Options }

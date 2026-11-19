@@ -15,16 +15,25 @@ export function createResourceApi<
   Create = Partial<T>,
   Update = Partial<Create>,
   Query extends ListQuery = ListQuery
->(path: string): CrudApi<T, Create, Update, Query> {
+>(path: string, writeConfig: AxiosRequestConfig = {}): CrudApi<T, Create, Update, Query> {
   return {
     list: (params: Query = {} as Query, config?: AxiosRequestConfig) =>
       request.get<PageData<T>>({ ...config, url: path, params }),
     get: (id) => request.get<T>({ url: `${path}/${id}` }),
-    create: (input) => request.post<T>({ url: path, data: writable(input as Record<string, any>) }),
+    create: (input) =>
+      request.post<T>({ ...writeConfig, url: path, data: writable(input as Record<string, any>) }),
     update: (id, input) =>
-      request.patch<T>({ url: `${path}/${id}`, data: writable(input as Record<string, any>) }),
+      request.patch<T>({
+        ...writeConfig,
+        url: `${path}/${id}`,
+        data: writable(input as Record<string, any>)
+      }),
     replace: (id, input) =>
-      request.put<T>({ url: `${path}/${id}`, data: writable(input as Record<string, any>) }),
+      request.put<T>({
+        ...writeConfig,
+        url: `${path}/${id}`,
+        data: writable(input as Record<string, any>)
+      }),
     remove: (id) => request.del<void>({ url: `${path}/${id}` }),
     removeMany: (ids) => request.del<void>({ url: path, params: { ids: ids.join(',') } })
   }

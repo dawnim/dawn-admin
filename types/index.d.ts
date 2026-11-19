@@ -8,6 +8,7 @@ export interface Options {
   logo?: string
   favicon?: string
   header?: { before?: Component; after?: Component; right?: Component }
+  support?: { customerInfo?: Component }
   messages?: Record<string, Record<string, unknown>>
   pages?: Record<string, () => Promise<{ default: Component } | Component>>
 }
@@ -39,6 +40,8 @@ export const CrudPage: DefineComponent<{
   editable?: boolean
   exportable?: boolean
   importable?: boolean
+  actionWidth?: number
+  formWidth?: string | number
   onChange?: () => void
 }>
 export const Upload: DefineComponent<{ categoryId?: number }>
@@ -109,9 +112,76 @@ export const ArtCountTo: DefineComponent<{
 }>
 export const ArtSvgIcon: DefineComponent<{ icon?: string }>
 
+export function renderChatMarkdown(text: string): string
+export function renderMarkdown(text: string): string
+export function enhanceMarkdown(root: HTMLElement): void
+export type EditorView = 'write' | 'live' | 'preview'
+export type EditorFormat = 'moment' | 'post'
+export interface MentionItem { label: string; value: string }
+export interface EditorConfig { hidden?: string[] }
+export interface EditorImage { id: string | number; url: string; name?: string }
+export type ImageTarget = 'body' | 'gallery' | 'choose'
+export interface EditorImageLibrary {
+  list: (keyword?: string) => Promise<EditorImage[]>
+  refresh?: () => void
+}
+export interface EditorImageUploader {
+  fingerprint?: (file: File) => Promise<{ md5?: string; sha256?: string }>
+  check?: (files: File[], prints: { md5?: string; sha256?: string }[]) => Promise<(EditorImage | null)[]>
+  upload: (files: File[], prints: { md5?: string; sha256?: string }[]) => Promise<EditorImage[]>
+  toMarkdown?: (image: EditorImage, name: string) => string
+}
+export interface EditorTool {
+  key: string
+  title: string | [string, string]
+  icon?: string
+  where?: 'toolbar' | 'attachments' | 'both'
+  onClick: (ctx: { editor: MarkdownEditor; anchor: HTMLElement }) => void
+}
+export interface EditorOptions {
+  render: (text: string) => string
+  enhance?: (root: HTMLElement) => void
+  upload?: (files: File[], insert: (text: string) => void) => void
+  mentions?: (query: string) => Promise<MentionItem[]>
+  config?: () => EditorConfig
+  previewImage?: (src: string) => void
+  onChange?: (text: string) => void
+  onSaveDraft?: () => void
+  locale?: 'zh' | 'en'
+  value?: string
+  format?: EditorFormat
+  maxLength?: number
+  /** 后台管理场景：动态格式也保留完整工具栏与预览。 */
+  alwaysFull?: boolean
+  imageLibrary?: EditorImageLibrary
+  imageUploader?: EditorImageUploader
+  imageTarget?: ImageTarget
+  onImagesChange?: (ids: (string | number)[]) => void
+  maxImages?: number
+  customTools?: EditorTool[]
+  attachmentHost?: HTMLElement
+}
+export interface MarkdownEditor {
+  getValue(): string
+  setValue(text: string): void
+  insertText(text: string): void
+  setOptions(options: Partial<Pick<EditorOptions, 'format' | 'maxLength' | 'locale' | 'config' | 'render' | 'alwaysFull' | 'imageTarget' | 'maxImages'>>): void
+  focus(): void
+  getImages(): (string | number)[]
+  setImages(images: EditorImage[]): void
+  openImageLibrary(anchor?: HTMLElement): void
+  destroy(): void
+}
+export function createMarkdownEditor(root: HTMLElement, options: EditorOptions): MarkdownEditor
+export function editorTemplate(locale?: 'zh' | 'en'): string
+export function renderEditorIcons(root: ParentNode): void
+
 export function createResourceApi<
   T extends Record<string, any> = Record<string, any>,
   Create = Partial<T>,
   Update = Partial<Create>,
   Query extends ListQuery = ListQuery
->(path: string): import('./table').CrudApi<T, Create, Update, Query>
+>(
+  path: string,
+  writeConfig?: AxiosRequestConfig
+): import('./table').CrudApi<T, Create, Update, Query>

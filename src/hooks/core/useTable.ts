@@ -211,7 +211,7 @@ function useTableImpl<TApiFn extends (params: any, config?: AxiosRequestConfig) 
     Object.assign(
       {
         [pageKey]: 1,
-        [sizeKey]: 20
+        [sizeKey]: 10
       },
       apiParams || {}
     ) as TParams
@@ -220,7 +220,7 @@ function useTableImpl<TApiFn extends (params: any, config?: AxiosRequestConfig) 
   // 分页配置
   const pagination = reactive<Api.Common.PaginationParams>({
     current: ((searchParams as Record<string, unknown>)[pageKey] as number) || 1,
-    size: ((searchParams as Record<string, unknown>)[sizeKey] as number) || 20,
+    size: ((searchParams as Record<string, unknown>)[sizeKey] as number) || 10,
     total: 0
   })
 
@@ -476,7 +476,7 @@ function useTableImpl<TApiFn extends (params: any, config?: AxiosRequestConfig) 
     const paramsRecord = searchParams as Record<string, unknown>
     const defaultPagination = {
       [pageKey]: 1,
-      [sizeKey]: (paramsRecord[sizeKey] as number) || 20
+      [sizeKey]: (paramsRecord[sizeKey] as number) || 10
     }
 
     // 清空所有搜索参数

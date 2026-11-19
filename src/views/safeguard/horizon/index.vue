@@ -365,7 +365,7 @@
       items: [],
       total: 0,
       page: 1,
-      pageSize: 2,
+      pageSize: 10,
       loading: false,
       error: '',
       reason: ''
@@ -516,7 +516,7 @@
           queue: row.queue,
           source_details: 1,
           page: 1,
-          page_size: 20
+          page_size: 10
         })
       if (panel.key === 'history') detail.value = { window: row, estimate: historyEstimate.value }
     } catch {

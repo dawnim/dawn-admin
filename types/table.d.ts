@@ -5,12 +5,18 @@ export interface Column {
   prop: string
   label: string
   type?: 'text' | 'number' | 'password' | 'select' | 'date' | 'boolean' | 'textarea'
+  /** 字典同时用于筛选、编辑和列表标签；未指定时使用原字段类型。 */
+  dict?: string
+  dictValueType?: 'number' | 'string'
+  nullable?: boolean
   options?: { label: string; value: string | number }[]
   maxlength?: number
   hidden?: boolean
   readonly?: boolean
   required?: boolean
   immutable?: boolean
+  /** 指定后由 CrudPage 的同名 form 插槽渲染该字段控件。 */
+  formSlot?: string
 }
 /** 列表请求使用snake_case，page从1开始，page_size不设固定上限。 */
 export interface ListQuery {
@@ -74,18 +80,67 @@ export const ArtTableHeader: DefineComponent<{
 export const DawnSearchBar: DefineComponent<{
   modelValue?: Record<string, any>
   showExpand?: boolean
+  defaultExpanded?: boolean
   labelWidth?: string
+  labelPosition?: 'left' | 'right' | 'top'
   gutter?: number
+  showReset?: boolean
+  showSearch?: boolean
+  disabledSearch?: boolean
+  onExpand?: (expanded: boolean) => void
+  onReset?: () => void
+  onSearch?: () => void
+}>
+export const DawnSelect: DefineComponent<{
+  dict: string
+  modelValue?: string | number | Array<string | number>
+  valueType?: 'number' | 'string'
+  placeholder?: string
+  disabled?: boolean
+  clearable?: boolean
+  filterable?: boolean
+  multiple?: boolean
+  collapseTags?: boolean
+  collapseTagsTooltip?: boolean
+}>
+export const DawnRadio: DefineComponent<{
+  dict: string
+  modelValue?: string | number
+  valueType?: 'number' | 'string'
+  type?: 'radio' | 'button' | 'border'
+  disabled?: boolean
+  size?: 'large' | 'default' | 'small'
+  fill?: string
+  textColor?: string
+  allowNull?: boolean
+  nullValue?: string | number
+  nullLabel?: string
+}>
+export const DawnDict: DefineComponent<{
+  dict: string
+  value: string | number | string[] | number[]
+  render?: string
+  size?: 'large' | 'default' | 'small'
+  round?: boolean
 }>
 export const DawnButton: DefineComponent<{
   type?: 'primary' | 'secondary' | 'error' | 'info' | 'success'
   icon?: string
   toolTip?: string
 }>
+/** CSV导入结果，按实际处理的数据行计数。 */
+export interface ImportResult {
+  count: number
+  updated: number
+}
 export const DawnImport: DefineComponent<{
-  downloadUrl: string
-  uploadUrl: string
+  title?: string
+  width?: string | number
+  downloadUrl?: string
+  uploadUrl?: string
   accept?: string
+  tip?: string
+  onSuccess?: (result: ImportResult) => void
 }>
 export const DawnExport: DefineComponent<{ url: string; method?: string; fileName?: string }>
 export function useAuth(): { hasAuth: (key: string) => boolean }
@@ -103,10 +158,7 @@ export function useAdmin(): {
     apiFn: (params: any) => Promise<any>,
     callback?: () => void
   ) => void
-  deleteSelectedRows: (
-    apiFn: (params: any) => Promise<any>,
-    callback?: () => void
-  ) => void
+  deleteSelectedRows: (apiFn: (params: any) => Promise<any>, callback?: () => void) => void
 }
 export function useTable<T = Record<string, any>>(config: {
   core: {

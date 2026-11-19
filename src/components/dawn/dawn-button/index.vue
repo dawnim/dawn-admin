@@ -5,11 +5,13 @@
       <div
         :class="[
           'inline-flex items-center justify-center min-w-8 h-8 px-2.5 text-sm c-p rounded-md align-middle',
-          buttonClass
+          buttonClass,
+          { 'opacity-50 cursor-not-allowed': disabled }
         ]"
         :style="{ backgroundColor: buttonBgColor, color: iconColor }"
         role="button"
-        tabindex="0"
+        :tabindex="disabled ? -1 : 0"
+        :aria-disabled="disabled"
         :aria-label="toolTip || labels[type || 'info']"
         @keydown.enter="handleClick"
         @keydown.space.prevent="handleClick"
@@ -36,6 +38,8 @@
   interface Props {
     /** 按钮类型 */
     type?: 'primary' | 'secondary' | 'error' | 'info' | 'success'
+    /** 禁用操作 */
+    disabled?: boolean
     /** 按钮图标 */
     icon?: string
     /** 按钮工具提示 */
@@ -79,6 +83,6 @@
   })
 
   const handleClick = () => {
-    emit('click')
+    if (!props.disabled) emit('click')
   }
 </script>

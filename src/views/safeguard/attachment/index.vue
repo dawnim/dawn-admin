@@ -111,7 +111,10 @@
                 :src="row.url"
                 :preview-src-list="[row.url]"
                 fit="cover"
-                class="h-10 w-10 rounded" /><ArtSvgIcon v-else icon="ri:file-line" class="text-xl"
+                class="art-table-image rounded" /><ArtSvgIcon
+                v-else
+                icon="ri:file-line"
+                class="text-xl"
             /></template>
             <!-- 操作列 -->
             <template #operation="{ row }">

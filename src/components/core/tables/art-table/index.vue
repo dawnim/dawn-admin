@@ -36,14 +36,8 @@
                 col.prop ? (Array.isArray(row[col.prop]) ? row[col.prop] : [row[col.prop]]) : []
               "
               :preview-teleported="true"
-              class="size-9.5 rounded-md"
-            >
-              <template #error>
-                <div class="flex items-center justify-center">
-                  <QuestionFilled />
-                </div>
-              </template>
-            </DawnImage>
+              class="art-table-image rounded-md"
+            />
           </template>
         </ElTableColumn>
 
@@ -51,13 +45,13 @@
         <ElTableColumn v-else-if="col.dawnType === 'imageAndText'" v-bind="cleanColumnProps(col)">
           <template #default="{ row }">
             <div class="flex-c">
-              <ArtAvatar v-if="col.prop === 'avatar'" :src="row.avatar" :size="38" />
+              <ArtAvatar v-if="col.prop === 'avatar'" :src="row.avatar" />
               <DawnImage
                 v-else
                 :src="col.prop ? row[col.prop] : ''"
                 :preview-src-list="col.prop ? [row[col.prop]] : []"
                 :preview-teleported="true"
-                class="size-9.5 shrink-0 rounded-md"
+                class="art-table-image shrink-0 rounded-md"
               />
               <div class="ml-2">
                 <p>{{ col.dawnFirst ? row[col.dawnFirst] : '' }}</p>
@@ -134,7 +128,6 @@
   import ArtAvatar from '@/components/core/base/art-avatar/index.vue'
   import { ref, computed, nextTick, watchEffect, type ComponentPublicInstance } from 'vue'
   import type { ElTable, TableColumnCtx, TableProps } from 'element-plus'
-  import { QuestionFilled } from '@element-plus/icons-vue'
   import { storeToRefs } from 'pinia'
   import { ColumnOption } from '@/types'
   import { useTableStore } from '@/store/modules/table'
@@ -206,6 +199,7 @@
     columns: () => [],
     fit: true,
     showHeader: true,
+    showOverflowTooltip: true,
     stripe: undefined,
     border: undefined,
     size: undefined,

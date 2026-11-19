@@ -2,7 +2,7 @@ import { computed, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue
 import request from '@/utils/http'
 import { dawnConfig } from '@/dawn/config'
 
-/** 私密附件带Bearer读取；地址变化或组件卸载时释放Blob。 */
+/** 相对地址使用API来源；私密附件带Bearer读取，地址变化或组件卸载时释放Blob。 */
 export function useImageUrls(source: MaybeRefOrGetter<string[]>) {
   const images = shallowRef<string[]>([])
   watch(
@@ -25,7 +25,7 @@ export function useImageUrls(source: MaybeRefOrGetter<string[]>) {
             target.origin !== api.origin ||
             !target.pathname.startsWith(api.pathname.replace(/\/$/, '') + '/attachments/')
           )
-            return value
+            return target.href
           try {
             const blob = await request.get<Blob>({
               url: target.href,

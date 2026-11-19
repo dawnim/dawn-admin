@@ -24,6 +24,18 @@ v-permission控制显隐，接口授权由服务端执行。菜单key和权限ke
 
 上传先计算MD5和SHA-256预检，再由服务端复核。接口时间为Unix毫秒整数。公共API和样式支持真实压缩包安装，不依赖源码别名。
 
+## CRUD开发
+
+- 新增普通CRUD必须先通过后台代码生成或`dawn:generate`生成，再补充业务逻辑。引用模式使用`CrudPage`，源码模式用于定制，不从零复制列表和表单；已有系统页面遵循上文原版布局要求。
+- AI在接入dawn-server的应用根目录执行`go run . dawn:generate records --mode=full --preview --json`检查，再去掉`--preview`生成。默认前端目录为`admin/src`，扩展或其他工程通过`--output`、`--frontend`、`--module`指定。完整用法见[代码生成教程](https://github.com/dawnim/dawn-simple/blob/main/docs/backend.md)。
+- 通用能力有缺口时先修公共组件、公开类型和引用、源码两种生成模式，不在各页面另补一套。接口、字段、权限、语言包和文档同步修改，不添加兼容分支或无实际复用的封装。
+- 普通列表以岗位管理为样式基准，保留搜索栏、表格卡片、工具栏、操作列与分页；复用`DawnSearchBar`、`ArtTableHeader`、`ArtTable`、`DawnButton`、`useTable`和`useAdmin`及全局密度，不自行改造布局、控件尺寸和间距。
+- 搜索默认不选值，查询回第一页，重置清空筛选；超过3项的额外筛选默认折叠并保留输入值。默认每页10条，使用服务端真实分页；删除末页数据后重新获取有效页，不伪造总数或本地截断数据。
+- 普通编辑弹窗默认600px、表单标签120px、搜索标签100px，控件对齐并使用框架响应式栅格。打开重置表单，编辑读取详情并防止过期响应覆盖；只提交可写字段，校验后防重复提交，成功后关闭并刷新，失败保留输入。
+- 模块API统一使用`list/get/create/update/replace/remove/removeMany`，通过统一request解包；PATCH局部修改、PUT完整替换，具体遵循下文REST接口约定。接口时间为毫秒，字段名与字段语言包逐字一致。
+- 按权限显示操作，菜单配图标且key保持稳定；状态使用字典与淡色标签，搜索用`DawnSelect`、编辑用`DawnRadio`。普通长文本省略并保留悬浮查看，新增复制图标等操作不得移除原交互。
+- CSV导入复用`DawnImport`的预览确认，导出复用`DawnExport`并沿用当前筛选。固定文案与字段语言包遵循下文语言规范，引用与源码模式保持相同交互；公共组件或类型变动后，用安装包验证两种生成页面的独立构建。
+
 ## 检查
 
 ```sh
@@ -63,10 +75,10 @@ HTTP接口以复数资源和方法表达操作：GET集合/详情，POST新增�
 
 批量删除使用DELETE集合?ids=1,2，一次请求、一份事务；必须提供明确ID，不允许整集合删除。写入只接受公开字段，主键、审计与归属字段由服务端维护。PATCH未提交的字段保持原值；PUT必须提供必填字段，省略的可选字段恢复模型默认值或零值。两者均正常写入0、false、空字符串；null只允许可空字段。
 
-列表参数为page、page_size、sort_by、sort_order，默认1/20，不设置每页条数上限。排序使用白名单并追加主键保证稳定；计数、列表、详情、写入和导出使用一致的数据范围。普通列表返回{data:[],meta:{page,page_size,total}}，树返回{data:[]}，Redis使用明确游标。禁止前端伪造总数、固定第一页或静默截断数据。
+列表参数为page、page_size、sort_by、sort_order，默认1/10，不设置每页条数上限。排序使用白名单并追加主键保证稳定；计数、列表、详情、写入和导出使用一致的数据范围。普通列表返回{data:[],meta:{page,page_size,total}}，树返回{data:[]}，Redis使用明确游标。禁止前端伪造总数、固定第一页或静默截断数据。
 
 成功使用HTTP状态：查询/修改200，新增201并设置Location，删除204无正文；详情/新增/修改返回{data:...}，错误返回{message,errors?}。前端只在统一request层解包，不能依赖业务code或兼容多套响应。分页越界需重新取有效页的数据。
 
 CSV导出是GET集合的text/csv表示，沿用当前筛选但忽略分页；导入使用POST集合/imports和multipart的file字段，模板为GET集合/import-template。导入事务验证全部行，不忽略错误；文件响应不套JSON。
 
-前端模块API统一list/get/create/update/replace/remove/removeMany，update(id,input)使用PATCH，replace(id,input)使用PUT，组件通过API调用。生成器的引用模式与源码模式遵循同一协议、字段、权限、导入导出和校验规则；同时维护公开类型、模板与文档。源代码和安装包都需编译与实际CRUD验证。
+前端模块API统一list/get/create/update/replace/remove/removeMany，update(id,input)使用PATCH，replace(id,input)使用PUT，组件通过API调用。

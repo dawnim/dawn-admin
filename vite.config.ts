@@ -24,6 +24,7 @@ export default ({ mode }: { mode: string }) => {
       port: Number(VITE_PORT || 5173),
       proxy: {
         '/admin': 'http://127.0.0.1:5123',
+        '/storage': 'http://127.0.0.1:5123',
         '/ws': { target: 'ws://127.0.0.1:8851', ws: true, rewrite: () => '/' }
       },
       host: true,

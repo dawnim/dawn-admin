@@ -19,7 +19,10 @@
   })
   const images = useImageUrls(() => [props.src])
   const failed = ref(false)
-  const style = computed(() => ({ width: props.size + 'px', height: props.size + 'px' }))
+  const style = computed(() => ({
+    width: `var(--art-table-control-size, ${props.size}px)`,
+    height: `var(--art-table-control-size, ${props.size}px)`
+  }))
   watch(
     () => props.src,
     () => (failed.value = false)

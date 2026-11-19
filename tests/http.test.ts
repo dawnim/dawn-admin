@@ -3,6 +3,7 @@ import { once } from 'node:events'
 import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
+import { effectScope, watch } from 'vue'
 import { createServer as createViteServer } from 'vite'
 
 test('HTTP凭证、请求参数和错误响应', async (t) => {
@@ -22,6 +23,10 @@ test('HTTP凭证、请求参数和错误响应', async (t) => {
       }
       await new Promise((resolve) => setTimeout(resolve, 30))
       res.end(JSON.stringify({ data: { access_token: 'fresh', refresh_token: 'rotated' } }))
+    } else if (req.url === '/admin/realtime/ticket') {
+      if (JSON.parse(Buffer.concat(chunks).toString()).resume) {
+        res.writeHead(409).end(JSON.stringify({ message: '恢复会话无效,请重新建立连接' }))
+      } else res.end(JSON.stringify({ data: { ticket: 'new-ws-ticket' } }))
     } else if (req.url?.startsWith('/admin/late') && req.headers.authorization !== 'Bearer fresh') {
       await new Promise((resolve) => setTimeout(resolve, 100))
       res.writeHead(401).end(JSON.stringify({ message: 'expired' }))
@@ -195,6 +200,50 @@ test('HTTP凭证、请求参数和错误响应', async (t) => {
   const { useAuth } = await vite.ssrLoadModule('/src/hooks/core/useAuth.ts')
   dawnConfig.apiBase = `http://127.0.0.1:${address.port}/admin`
 
+  await t.test('图片地址使用API来源，只有私密附件通过鉴权请求读取', async () => {
+    const { useImageUrls } = await vite.ssrLoadModule('/src/composables/useImageUrls.ts')
+    const originalGet = request.get
+    const calls: string[] = []
+    request.get = async (config: { url: string }) => {
+      calls.push(config.url)
+      return new Blob(['image'], { type: 'image/png' })
+    }
+    const scope = effectScope()
+    try {
+      const source = [
+        '/storage/picture.png',
+        'https://cdn.example.com/picture.png',
+        'data:image/png;base64,aGVsbG8=',
+        '//cdn.example.com/picture.png',
+        '/admin/attachments/7/content',
+        '/admin/attachments/7/content',
+        'https://cdn.example.com/admin/attachments/7/content'
+      ]
+      const images = scope.run(() => useImageUrls(() => source))!
+      await new Promise<void>((resolve) => {
+        const stop = watch(images, (values) => {
+          if (values.length === source.length) {
+            stop()
+            resolve()
+          }
+        })
+      })
+      assert.equal(images.value[0], `http://127.0.0.1:${address.port}/storage/picture.png`)
+      assert.deepEqual(images.value.slice(1, 4), [
+        source[1],
+        source[2],
+        'http://cdn.example.com/picture.png'
+      ])
+      assert.match(images.value[4], /^blob:/)
+      assert.equal(images.value[5], images.value[4])
+      assert.equal(images.value[6], source[6])
+      assert.deepEqual(calls, [`${dawnConfig.apiBase}/attachments/7/content`])
+    } finally {
+      scope.stop()
+      request.get = originalGet
+    }
+  })
+
   await t.test('组件权限读取当前授权与超级管理员标识', () => {
     const { hasAuth } = useAuth()
     user.info.buttons = ['app.orders.list']
@@ -261,6 +310,41 @@ test('HTTP凭证、请求参数和错误响应', async (t) => {
     assert.equal(user.accessToken, 'expired')
     refreshUnavailable = false
     user.setToken('fresh', 'rotated')
+  })
+  await t.test('WS恢复凭证过期只重建连接，不刷新登录或注销', async () => {
+    const saved = new Map([['dawn.ws.resume:undefined', 'expired-resume']])
+    let onConnect: (url: string) => void
+    const connected = new Promise<string>((resolve) => {
+      onConnect = resolve
+    })
+    const previous = { sessionStorage: globalThis.sessionStorage, WebSocket: globalThis.WebSocket }
+    Object.assign(globalThis, {
+      sessionStorage: {
+        getItem: (key: string) => saved.get(key) ?? null,
+        setItem: (key: string, value: string) => saved.set(key, value),
+        removeItem: (key: string) => saved.delete(key)
+      },
+      WebSocket: class {
+        constructor(url: string) {
+          onConnect(url)
+        }
+        close() {}
+      }
+    })
+    const { connectRealtime } = await vite.ssrLoadModule('/src/dawn/realtime.ts')
+    const before = refreshes
+    const connection = connectRealtime()
+    try {
+      await connected
+      await new Promise((resolve) => setTimeout(resolve, 550))
+      assert.equal(saved.size, 0)
+      assert.equal(refreshes, before)
+      assert.equal(user.accessToken, 'fresh')
+      assert.equal(user.refreshToken, 'rotated')
+    } finally {
+      connection.close()
+      Object.assign(globalThis, previous)
+    }
   })
   await t.test('清空本地凭证后退出请求仍携带原凭证', async () => {
     const pending = fetchLogout(user.accessToken)

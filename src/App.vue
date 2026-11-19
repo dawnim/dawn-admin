@@ -1,5 +1,5 @@
 <template>
-  <ElConfigProvider size="default" :locale="locales[language]" :z-index="3000">
+  <ElConfigProvider size="default" :locale="locales[language] || zh" :z-index="3000">
     <RouterView :key="revision"></RouterView>
   </ElConfigProvider>
 </template>

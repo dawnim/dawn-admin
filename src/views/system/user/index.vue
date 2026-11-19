@@ -134,20 +134,22 @@
       width="min(1000px,94vw)"
       align-center
     >
-      <ArtTable
-        :data="sessions"
-        :columns="sessionColumns"
-        :loading="sessionsLoading"
-        height="52vh"
-        :pagination="sessionsPagination"
-        @pagination:size-change="sessionSizeChange"
-        @pagination:current-change="sessionPageChange"
+      <ArtTable :data="sessions" :columns="sessionColumns" :loading="sessionsLoading" height="52vh"
         ><template #operation="{ row }"
           ><DawnButton
             v-permission="'dawn.users.update'"
             type="error"
             @click="revokeSession(row.id)" /></template
       ></ArtTable>
+      <template #footer>
+        <ElButton :disabled="sessionsLoading || !sessionCursors.length" @click="previousSessions">{{
+          t('上一页')
+        }}</ElButton>
+        <ElButton :disabled="sessionsLoading || nextSessionCursor === '0'" @click="nextSessions">{{
+          t('下一页')
+        }}</ElButton>
+        <ElButton :loading="sessionsLoading" @click="openSessions">{{ t('刷新') }}</ElButton>
+      </template>
     </ElDialog>
     <DashboardDialog v-model="dashboardVisible" :data="dashboardUser" @success="refreshData" />
     <!-- 表单弹窗 -->
@@ -180,41 +182,52 @@
   const dashboardVisible = ref(false)
   const dashboardUser = ref<Record<string, any>>()
   const sessionsVisible = ref(false)
-  const {
-    data: sessions,
-    columns: sessionColumns,
-    loading: sessionsLoading,
-    pagination: sessionsPagination,
-    getData: loadSessions,
-    refreshData: refreshSessions,
-    handleSizeChange: sessionSizeChange,
-    handleCurrentChange: sessionPageChange
-  } = useTable({
-    core: {
-      apiFn: api.sessions,
-      immediate: false,
-      columnsFactory: () => [
-        { prop: 'user_id', label: t('用户ID'), width: 100 },
-        { prop: 'ip', label: 'IP', width: 150 },
-        { prop: 'user_agent', label: t('设备'), minWidth: 200 },
-        {
-          prop: 'created_at',
-          label: t('创建时间'),
-          width: 180,
-          formatter: (row: any) => dateLabel(row.created_at)
-        },
-        { prop: 'operation', label: t('操作'), width: 80, useSlot: true }
-      ]
+  const sessions = ref<Record<string, any>[]>([])
+  const sessionsLoading = ref(false)
+  const sessionCursor = ref('0')
+  const nextSessionCursor = ref('0')
+  const sessionCursors = ref<string[]>([])
+  const sessionColumns = computed(() => [
+    { prop: 'user_id', label: t('用户ID'), width: 100 },
+    { prop: 'ip', label: 'IP', width: 150 },
+    { prop: 'user_agent', label: t('设备'), minWidth: 200 },
+    {
+      prop: 'created_at',
+      label: t('创建时间'),
+      width: 180,
+      formatter: (row: any) => dateLabel(row.created_at)
+    },
+    { prop: 'operation', label: t('操作'), width: 80, useSlot: true }
+  ])
+  async function loadSessions() {
+    sessionsLoading.value = true
+    try {
+      const result = await api.sessions({ cursor: sessionCursor.value, page_size: 10 })
+      sessions.value = result.data
+      nextSessionCursor.value = result.meta.cursor
+    } finally {
+      sessionsLoading.value = false
     }
-  })
+  }
   async function openSessions() {
     sessionsVisible.value = true
+    sessionCursor.value = '0'
+    sessionCursors.value = []
+    await loadSessions()
+  }
+  async function nextSessions() {
+    sessionCursors.value.push(sessionCursor.value)
+    sessionCursor.value = nextSessionCursor.value
+    await loadSessions()
+  }
+  async function previousSessions() {
+    sessionCursor.value = sessionCursors.value.pop() || '0'
     await loadSessions()
   }
   async function revokeSession(id: string) {
     await ElMessageBox.confirm(t('撤销会话'), t('确认'))
     await api.revoke(id)
-    await refreshSessions()
+    await loadSessions()
   }
 
   const treeData = ref<any[]>([])

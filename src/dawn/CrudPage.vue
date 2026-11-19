@@ -74,13 +74,17 @@
       :columns="columns"
       :defaults="defaults"
       :api="api"
+      :form-width="formWidth"
       @success="changed"
       ><template #form="scope"><slot name="form" v-bind="scope" /></template
+      ><template v-for="name in fieldSlots" #[name]="scope"
+        ><slot :name="name" v-bind="scope"
+      /></template>
     ></EditDialog>
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref } from 'vue'
+  import { computed, ref, useSlots } from 'vue'
   import { useI18n } from 'vue-i18n'
   import { ElCard, ElSpace, ElButton } from 'element-plus'
   import ArtTable from '@/components/core/tables/art-table/index.vue'
@@ -109,6 +113,8 @@
       editable?: boolean
       exportable?: boolean
       importable?: boolean
+      actionWidth?: number
+      formWidth?: string | number
     }>(),
     {
       resource: '',
@@ -116,10 +122,12 @@
       defaults: () => ({}),
       editable: true,
       exportable: false,
-      importable: false
+      importable: false,
+      actionWidth: 100
     }
   )
   const emit = defineEmits<{ change: [] }>()
+  const fieldSlots = Object.keys(useSlots()).filter((name) => !['toolbar', 'actions', 'form'].includes(name))
   const api = props.api || createResourceApi(props.resource)
   const searchForm = ref<Record<string, any>>(
     Object.fromEntries(props.search.map((field) => [field, undefined]))
@@ -155,6 +163,8 @@
             minWidth: 130,
             sortable: true,
             showOverflowTooltip: true,
+            dawnType: column.dict ? 'dict' : undefined,
+            dawnDict: column.dict,
             formatter:
               column.type === 'date'
                 ? (row: Record<string, any>) => dateLabel(row[column.prop])
@@ -164,7 +174,7 @@
                       row[column.prop]
                   : undefined
           })),
-        { prop: 'operation', label: t('操作'), width: 100, fixed: 'right', useSlot: true }
+        { prop: 'operation', label: t('操作'), width: props.actionWidth, fixed: 'right', useSlot: true }
       ]
     },
     hooks: {

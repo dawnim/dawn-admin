@@ -7,6 +7,7 @@ export interface Options {
   logo?: string
   favicon?: string
   header?: { before?: Component; after?: Component; right?: Component }
+  support?: { customerInfo?: Component }
   messages?: Record<string, Record<string, unknown>>
   pages?: Record<string, () => Promise<{ default: Component } | Component>>
 }
@@ -22,5 +23,6 @@ export const dawnConfig = shallowReactive({
   timezone: 'UTC',
   serverTimeOffset: 0,
   header: {} as NonNullable<Options['header']>,
+  support: {} as NonNullable<Options['support']>,
   pages: {} as NonNullable<Options['pages']>
 })

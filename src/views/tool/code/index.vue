@@ -198,7 +198,7 @@ func Configure(o *sdk.Options) {
     o.Menus = append(o.Menus, sdk.Menu{
         Key: "${permission}", ParentKey: "dawn.development",
         Title: "${table.value}", Path: "${page}",
-        Component: "${page}", Permission: "${permission}.list",
+        Component: "${page}", Permission: "${permission}.list", Icon: "ri:table-line",
     })
     for action, title := range map[string]string{
         "list": "查看", "create": "新增", "update": "修改",
@@ -361,6 +361,11 @@ createAdmin({
   :global(.code-dialog .el-dialog__body) {
     min-height: 0;
     overflow-y: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   .code-editor {

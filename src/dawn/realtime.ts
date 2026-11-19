@@ -141,9 +141,11 @@ export function connectRealtime() {
       }
     } catch (error) {
       if (stopped) return
-      if (resume && error instanceof HttpError && error.code === 401) {
+      if (resume && error instanceof HttpError && error.code === 409) {
         resume = ''
         sessionStorage.removeItem(resumeKey)
+        void open()
+        return
       }
       timer = setTimeout(open, Math.min(30000, 1000 * 2 ** retry++))
     }
