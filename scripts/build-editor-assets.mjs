@@ -10,6 +10,7 @@ await build({
   minify: true,
   format: 'iife',
   globalName: 'DawnEditor',
+  footer: { js: 'window.DawnEditor=DawnEditor;' },
   outfile: resolve(destination, 'dawn-editor.js'),
 })
 const css = await Promise.all(['markdown', 'editor'].map(name => readFile(`src/dawn/${name}.css`, 'utf8')))
