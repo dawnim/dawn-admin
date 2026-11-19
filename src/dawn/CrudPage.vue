@@ -80,7 +80,8 @@
       ><template v-for="name in fieldSlots" #[name]="scope"
         ><slot :name="name" v-bind="scope"
       /></template>
-    ></EditDialog>
+      ></EditDialog
+    >
   </div>
 </template>
 <script setup lang="ts">
@@ -127,7 +128,9 @@
     }
   )
   const emit = defineEmits<{ change: [] }>()
-  const fieldSlots = Object.keys(useSlots()).filter((name) => !['toolbar', 'actions', 'form'].includes(name))
+  const fieldSlots = Object.keys(useSlots()).filter(
+    (name) => !['toolbar', 'actions', 'form'].includes(name)
+  )
   const api = props.api || createResourceApi(props.resource)
   const searchForm = ref<Record<string, any>>(
     Object.fromEntries(props.search.map((field) => [field, undefined]))
@@ -174,7 +177,13 @@
                       row[column.prop]
                   : undefined
           })),
-        { prop: 'operation', label: t('操作'), width: props.actionWidth, fixed: 'right', useSlot: true }
+        {
+          prop: 'operation',
+          label: t('操作'),
+          width: props.actionWidth,
+          fixed: 'right',
+          useSlot: true
+        }
       ]
     },
     hooks: {

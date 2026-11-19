@@ -43,17 +43,26 @@ export function enhanceMarkdown(root: HTMLElement): void {
   })
   const charts = root.querySelectorAll<HTMLElement>('.md-mermaid')
   if (charts.length) {
-    import(/* @vite-ignore */ `${CDN}/mermaid@11/dist/mermaid.esm.min.mjs`).then(async (module: any) => {
-      const mermaid = module.default
-      const dark = document.documentElement.dataset.theme === 'dark' || document.documentElement.classList.contains('dark')
-      mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default' })
-      for (const [index, node] of Array.from(charts).entries()) {
-        try {
-          const { svg } = await mermaid.render(`md-mermaid-${Date.now()}-${index}`, node.textContent || '')
-          node.innerHTML = svg
-        } catch { node.textContent = '图表渲染失败' }
-      }
-    }).catch(() => charts.forEach((node) => (node.textContent = '图表加载失败')))
+    import(/* @vite-ignore */ `${CDN}/mermaid@11/dist/mermaid.esm.min.mjs`)
+      .then(async (module: any) => {
+        const mermaid = module.default
+        const dark =
+          document.documentElement.dataset.theme === 'dark' ||
+          document.documentElement.classList.contains('dark')
+        mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default' })
+        for (const [index, node] of Array.from(charts).entries()) {
+          try {
+            const { svg } = await mermaid.render(
+              `md-mermaid-${Date.now()}-${index}`,
+              node.textContent || ''
+            )
+            node.innerHTML = svg
+          } catch {
+            node.textContent = '图表渲染失败'
+          }
+        }
+      })
+      .catch(() => charts.forEach((node) => (node.textContent = '图表加载失败')))
   }
   if (root.querySelector('.katex') && !document.getElementById('md-katex-css')) {
     const link = document.createElement('link')
