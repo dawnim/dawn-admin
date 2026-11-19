@@ -190,7 +190,6 @@ html.dark .el-card {
 .el-dropdown-menu {
   padding: 6px !important;
   border-radius: 10px !important;
-  border: none !important;
 
   .el-dropdown-menu__item {
     padding: 6px 16px !important;
@@ -211,7 +210,6 @@ html.dark .el-card {
 // 隐藏 select、dropdown 的三角
 .el-select__popper,
 .el-dropdown__popper {
-  margin-top: -6px !important;
 
   .el-popper__arrow {
     display: none;
@@ -219,7 +217,12 @@ html.dark .el-card {
 }
 
 .el-dropdown-selfdefine:focus {
-  outline: none !important;
+  outline: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 2px;
+  }
 }
 
 // 处理移动端组件兼容性
@@ -375,32 +378,37 @@ html.dark .el-card {
   }
 }
 
-// 修改 el-select 样式
+// 选中态与指针、键盘焦点独立，选项保持同一高度。
 .el-select__popper:not(.el-tree-select__popper) {
   .el-select-dropdown__list {
-    padding: 5px !important;
+    padding: 4px;
+  }
 
-    .el-select-dropdown__item {
-      height: 34px !important;
-      line-height: 34px !important;
-      border-radius: 6px !important;
+  .el-select-dropdown__item {
+    height: 34px;
+    padding-inline: 10px 30px;
+    line-height: 34px;
+    border-radius: 6px;
 
-      &.is-selected {
-        color: var(--art-gray-900) !important;
-        font-weight: 400 !important;
-        background-color: var(--art-el-active-color) !important;
-        margin-bottom: 4px !important;
-      }
+    &.is-selected {
+      color: var(--el-color-primary);
+      background: var(--el-color-primary-light-9);
 
-      &:hover {
-        background-color: var(--art-hover-color) !important;
+      &::after {
+        position: absolute;
+        inset-inline-end: 10px;
+        content: '✓';
       }
     }
 
-    .el-select-dropdown__item:hover ~ .is-selected,
-    .el-select-dropdown__item.is-selected:has(~ .el-select-dropdown__item:hover) {
-      background-color: transparent !important;
+    &:not(.is-disabled):is(:hover, .is-hovering) {
+      background-color: var(--art-hover-color);
+      box-shadow: inset 0 0 0 1px var(--el-color-primary-light-5);
     }
+  }
+
+  .el-select-dropdown.is-multiple .el-select-dropdown__item.is-selected::after {
+    content: '';
   }
 }
 

@@ -42,14 +42,12 @@ export { renderChatMarkdown, renderMarkdown, enhanceMarkdown } from './dawn/mark
 export { createMarkdownEditor, editorTemplate, renderEditorIcons } from './dawn/editor'
 export type {
   EditorConfig,
-  EditorFormat,
   EditorImage,
   EditorImageLibrary,
   EditorImageUploader,
   EditorOptions,
   EditorTool,
   EditorView,
-  ImageTarget,
   MentionItem,
   MarkdownEditor
 } from './dawn/editor'

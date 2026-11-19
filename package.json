@@ -1,6 +1,6 @@
 {
   "name": "@dawnim/admin",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Vue 3 后台管理组件与系统页面",
   "license": "MIT",
   "author": "dawnim",
@@ -159,7 +159,12 @@
       "import": "./dist/dawn-admin.js"
     },
     "./style.css": "./dist/dawn-admin.css",
-    "./editor-assets/*": "./dist/dawn-editor.*"
+    "./editor-assets/*": "./dist/dawn-editor.*",
+    "./editor": {
+      "types": "./types/editor.d.ts",
+      "import": "./dist/dawn-editor.mjs"
+    },
+    "./editor.css": "./dist/dawn-editor.css"
   },
   "peerDependencies": {
     "element-plus": "^2.11.0",

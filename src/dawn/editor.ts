@@ -1,17 +1,6 @@
-/**
- * 框架提供的完整 Markdown 编辑器：自带 Rhex 原版皮肤（DOM 模板 + CSS + 图标）、
- * 17 项工具栏、三视图、行号、选区浮动条、表格网格、弹层、@ 候选、快捷键与全屏。
- *
- * 官网已有同款静态 DOM 时直接接管，后台用 editorTemplate() 生成同款皮肤。
- * 表情数据内置（emoji-data.ts），不依赖后台配置；只有真正需要业务参与的能力
- * 通过 options 注入：render / upload / mentions / config / previewImage /
- * onChange / onSaveDraft。
- */
-
 import { EMOJI_GROUPS, EMOJI_NAMES } from './emoji-data'
 
 export type EditorView = 'write' | 'live' | 'preview'
-export type EditorFormat = 'moment' | 'post'
 
 export interface MentionItem {
   label: string
@@ -22,19 +11,18 @@ export interface EditorConfig {
   hidden?: string[]
 }
 
-/** 已经入库的图片。url 只用于展示；保存时只用 id，绝不把 url 再上传一次。 */
+/** Image with a URL suitable for the default Markdown insertion. */
 export interface EditorImage {
   id: string | number
   url: string
   name?: string
 }
-export type ImageTarget = 'body' | 'gallery' | 'choose'
 export interface EditorImageLibrary {
   list: (keyword?: string) => Promise<EditorImage[]>
   refresh?: () => void
 }
 export interface EditorImageUploader {
-  /** 摘要由业务定（官网 md5+sha256 秒传），内核不算也不假设。 */
+  /** The provider chooses the fingerprint used for upload deduplication. */
   fingerprint?: (file: File) => Promise<{ md5?: string; sha256?: string }>
   /** 秒传检查，与 files 一一对应；不提供则全部走 upload。 */
   check?: (
@@ -44,22 +32,19 @@ export interface EditorImageUploader {
   upload: (files: File[], prints: { md5?: string; sha256?: string }[]) => Promise<EditorImage[]>
   toMarkdown?: (image: EditorImage, name: string) => string
 }
-/** 自定义工具按钮：可放工具栏、下方附件区或两处都放。 */
+/** Toolbar extension supplied by the application. */
 export interface EditorTool {
   key: string
   title: string | [string, string]
   icon?: string
-  where?: 'toolbar' | 'attachments' | 'both'
   onClick: (ctx: { editor: MarkdownEditor; anchor: HTMLElement }) => void
 }
 
 export interface EditorOptions {
-  /** Markdown 渲染规则（业务方言）。 */
+  /** Render Markdown or application syntax as trusted, sanitized HTML. */
   render: (text: string) => string
   /** 预览渲染后的 DOM 增强。 */
   enhance?: (root: HTMLElement) => void
-  /** 图片上传：业务自行上传，用 insert 把标记插回选区。 */
-  upload?: (files: File[], insert: (text: string) => void) => void
   /** @ 候选查询。 */
   mentions?: (query: string) => Promise<MentionItem[]>
   /** 后台配置：需要隐藏的工具栏项。 */
@@ -68,51 +53,27 @@ export interface EditorOptions {
   previewImage?: (src: string) => void
   /** 正文变化。 */
   onChange?: (text: string) => void
-  /** Cmd/Ctrl+S 保存草稿。 */
+  /** Cmd/Ctrl+S save callback. */
   onSaveDraft?: () => void
   locale?: 'zh' | 'en'
+  placeholder?: string
   value?: string
-  format?: EditorFormat
+  compact?: boolean
   maxLength?: number
-  /** 后台管理场景：动态格式也保留完整工具栏与预览（官网保持 Rhex 1:1 行为）。 */
-  alwaysFull?: boolean
-  /** 以下图片能力全部可选：一个都不接时，图片按钮仍是旧版「直接选文件」。 */
   imageLibrary?: EditorImageLibrary
   imageUploader?: EditorImageUploader
-  /** 图片落点：body=插正文，gallery=仅进下方附件区，choose=浮层里二选一。 */
-  imageTarget?: ImageTarget
-  onImagesChange?: (ids: (string | number)[]) => void
-  maxImages?: number
+  /** Opt in to uploading pasted images and inserting them in the document. */
+  pasteImages?: boolean
+  mediaMarkup?: (url: string, type: 'audio' | 'video' | 'iframe') => string
   customTools?: EditorTool[]
-  /** 附件区宿主；同一页面有多个编辑器时必须各自指定，否则会抢同一个容器。 */
-  attachmentHost?: HTMLElement
 }
 
 export interface MarkdownEditor {
   getValue(): string
   setValue(text: string): void
-  insertText(text: string): void
-  setOptions(
-    options: Partial<
-      Pick<
-        EditorOptions,
-        | 'format'
-        | 'maxLength'
-        | 'locale'
-        | 'config'
-        | 'render'
-        | 'alwaysFull'
-        | 'imageTarget'
-        | 'maxImages'
-      >
-    >
-  ): void
+  insertText(text: string | ((selected: string) => string)): void
+  setOptions(options: Partial<Omit<EditorOptions, 'value'>>): void
   focus(): void
-  /** 本文已引用的图片 id（正文 + 附件区，去重）。 */
-  getImages(): (string | number)[]
-  /** 编辑已有内容时回填附件区（不会重新上传）。 */
-  setImages(images: EditorImage[]): void
-  openImageLibrary(anchor?: HTMLElement): void
   destroy(): void
 }
 
@@ -138,7 +99,7 @@ const ICONS: Record<string, string> = {
   close: '<path d="m6 6 12 12M6 18 18 6"/>'
 }
 
-/** 全屏 / 退出全屏：四角展开与收起，替换原来的 ↗ 文本箭头（官网静态 DOM 也会被接管）。 */
+/** 全屏 / 退出全屏：四角展开与收起，替换原来的 ↗ 文本箭头。 */
 // 进入/退出必须是两套一眼能分辨的图形：进入是四角向外扩张，退出是
 // 「四角向内收 + 中间一个小窗口框」。之前两个 path 只是同一四角 L 形的反向
 // 绘制，肉眼看几乎一样，用户分不清当前状态。
@@ -199,10 +160,6 @@ const TEXT: Record<string, [string, string]> = {
     '已识别为音频地址，将按 audio 标签渲染',
     'Detected an audio URL; will render as <audio>'
   ],
-  媒体提示站点: [
-    '已识别为站点媒体链接，将按 iframe 渲染',
-    'Detected an embed URL; will render as iframe'
-  ],
   媒体提示兜底: [
     '无法判断直链格式，将按 iframe 渲染',
     'Unknown direct link format; will render as iframe'
@@ -226,18 +183,12 @@ const TEXT: Record<string, [string, string]> = {
   我的图片: ['我的图片', 'My images'],
   上传: ['上传', 'Upload'],
   搜索图片: ['搜索图片', 'Search images'],
+  图片: ['图片', 'Image'],
   图片说明: ['选一张已上传的图，或上传新图', 'Pick an uploaded image or add a new one'],
   暂无图片: ['还没有上传过图片', 'No uploaded images yet'],
   图片加载失败: ['图片加载失败', 'Could not load images'],
-  重试: ['重试', 'Retry'],
-  点击或拖入图片: ['点击选择、拖入或粘贴图片', 'Click, drop or paste images'],
-  图片数量上限: ['图片数量已达上限', 'Image limit reached'],
-  仅图片: ['仅支持 JPG / PNG / GIF / WebP 图片', 'Only JPG / PNG / GIF / WebP images'],
-  插正文: ['插入正文', 'Insert into text'],
-  加入附件: ['仅加入下方', 'Add to gallery'],
   正在上传: ['上传中…', 'Uploading…'],
   上传失败: ['上传失败', 'Upload failed'],
-  移除: ['移除', 'Remove'],
   关闭: ['关闭', 'Close'],
   复制: ['复制', 'Copy'],
   已复制: ['已复制', 'Copied'],
@@ -309,7 +260,6 @@ const PANEL_WIDTH: Record<PanelName, number> = {
   image: 360
 }
 const PANEL_TOOL_KEYS = [...PANEL_NAMES, 'emoji'] as string[]
-let editorSeq = 0
 
 const TIPS: Record<string, [string, string, string]> = {
   标题层级: [
@@ -364,11 +314,11 @@ function helpSections(en: boolean): [string, string][] {
         ],
         [
           'Links, images, tables and quotes',
-          '```md\n> A quote\n\n[Link](https://example.com)\n![Image](attachment://123)\n\n| Col 1 | Col 2 |\n| --- | --- |\n| A | B |\n```\n\nImages use the Dawn upload endpoint; `Alt+Up/Down` moves a table row. Footnotes `text[^1]` and abbreviations `*[HTML]: HyperText Markup Language` work too.'
+          '```md\n> A quote\n\n[Link](https://example.com)\n![Image](https://example.com/photo.jpg)\n\n| Col 1 | Col 2 |\n| --- | --- |\n| A | B |\n```\n\n`Alt+Up/Down` moves a table row. Footnotes `text[^1]` and abbreviations `*[HTML]: HyperText Markup Language` work too.'
         ],
         [
           'Emoji, media and mentions',
-          '- Click the smiley toolbar button to open the built-in picker: 1,900+ Unicode emoji in eight groups, plus recently used. Selecting one inserts the emoji itself and keeps the picker open for multiple picks.\n- Hand-written shortcodes `:smile:` still work, and custom shortcodes can be configured in the admin panel\n- Media markers `MEDIA::video::https://...`, `MEDIA::audio::https://...`, `MEDIA::iframe::https://...`\n- `@username` opens a suggestion panel and renders as a user link'
+          '- Click the smiley toolbar button to open the built-in picker: 1,900+ Unicode emoji in eight groups, plus recently used. Selecting one inserts the emoji itself and keeps the picker open for multiple picks.\n- Hand-written shortcodes `:smile:` still work, when supported by the renderer\n- `@username` opens a suggestion panel and renders as a user link'
         ]
       ]
     : [
@@ -394,23 +344,23 @@ function helpSections(en: boolean): [string, string][] {
         ],
         [
           '链接、图片、表格与引用',
-          '```md\n> 这里是一段引用\n\n[链接](https://example.com)\n![图片](attachment://123)\n\n| 列 1 | 列 2 |\n| --- | --- |\n| 内容 A | 内容 B |\n```\n\n图片走 Dawn 统一上传接口；表格行内 `Alt+↑/↓` 可移动行。脚注 `文字[^1]` 与缩写 `*[HTML]: HyperText Markup Language` 同样可用。'
+          '```md\n> 这里是一段引用\n\n[链接](https://example.com)\n![图片](https://example.com/photo.jpg)\n\n| 列 1 | 列 2 |\n| --- | --- |\n| 内容 A | 内容 B |\n```\n\n表格行内 `Alt+↑/↓` 可移动行。脚注 `文字[^1]` 与缩写 `*[HTML]: HyperText Markup Language` 同样可用。'
         ],
         [
           '表情、媒体与提及',
-          '- 点击工具栏笑脸按钮打开内置表情面板：1900+ 个 Unicode 表情按 8 组分类，另有「最近使用」；点选直接插入表情字符，面板不关闭可连续插入\n- 手写短码 `:smile:` 仍有效，后台可配置自定义短码（兼容旧内容）\n- 媒体标记 `MEDIA::video::https://...`、`MEDIA::audio::https://...`、`MEDIA::iframe::https://...`\n- iframe 仅放行 Bilibili、网易云、YouTube、腾讯视频等站点\n- `@用户名` 会触发候选面板并渲染成用户链接'
+          '- 点击工具栏笑脸按钮打开内置表情面板：1900+ 个 Unicode 表情按 8 组分类，另有「最近使用」；点选直接插入表情字符，面板不关闭可连续插入\n- 手写短码 `:smile:` 仍有效，由渲染器决定是否支持\n- `@用户名` 会触发候选面板并渲染成用户链接'
         ]
       ]
 }
 
-/** 编辑器自带皮肤：与官网 index.html 的静态 DOM 结构完全一致。 */
+/** 编辑器自带皮肤：适用于普通 DOM 宿主。 */
 export function editorTemplate(locale: 'zh' | 'en' = 'zh'): string {
   const L = (key: string) => TEXT[key]?.[locale === 'en' ? 1 : 0] ?? key
   const ic = (name: string) => `<span data-icon="${name}"></span>`
   const label = (key: string) => `<span data-label="${key}">${L(key)}</span>`
   return `
 <div class="compose-editor-shell" data-editor-shell>
-  <div class="editor-head" data-editor-tabs><div class="editor-tabs"><button type="button" class="active" data-editor-view="write">${L('正文')}</button><button type="button" data-editor-view="live">${L('实时预览')}</button><button type="button" data-editor-view="preview">${L('预览')}</button></div><span class="editor-length" data-editor-length>0 / 300</span><button class="editor-icon" type="button" data-editor-fullscreen data-title="进入全屏">${FULLSCREEN_ICONS.enter}</button></div>
+  <div class="editor-head" data-editor-tabs><div class="editor-tabs"><button type="button" class="active" data-editor-view="write">${label('正文')}</button><button type="button" data-editor-view="live">${label('实时预览')}</button><button type="button" data-editor-view="preview">${label('预览')}</button></div><span class="editor-length" data-editor-length>0 / 300</span><button class="editor-icon" type="button" data-editor-fullscreen data-title="进入全屏">${FULLSCREEN_ICONS.enter}</button></div>
   <div class="compose-editor" data-editor-body><div class="editor-lines" data-editor-lines aria-hidden="true"></div><textarea data-editor-input maxlength="300" required rows="6" spellcheck="false"></textarea><div class="markdown-body markdown-preview" data-editor-preview hidden></div><div class="editor-selection-bar" data-editor-selection hidden><button type="button" data-editor-command="bold"><b>B</b></button><button type="button" data-editor-command="italic"><i>I</i></button><button type="button" data-editor-command="underline"><u>U</u></button><button type="button" data-editor-command="highlight">H</button><button type="button" data-editor-command="code" data-value="inline">&lt;/&gt;</button></div><div class="editor-mention-panel" data-editor-mentions hidden></div></div>
   <div class="editor-toolbar" data-editor-toolbar>
     <div class="editor-tool-dropdown"><button type="button" class="editor-tool" data-editor-menu="heading" data-title="标题层级"><span class="editor-heading-label">H1</span><i>⌄</i></button><div class="editor-menu" data-editor-menu-panel="heading"><button type="button" data-editor-command="heading" data-value="1">H1 ${label('一级标题')}</button><button type="button" data-editor-command="heading" data-value="2">H2 ${label('二级标题')}</button><button type="button" data-editor-command="heading" data-value="3">H3 ${label('三级标题')}</button></div></div>
@@ -431,6 +381,7 @@ export function editorTemplate(locale: 'zh' | 'en' = 'zh'): string {
     <button type="button" class="editor-tool" data-editor-command="image" data-editor-image data-title="添加图片">${ic('image')}</button>
     <button type="button" class="editor-tool" data-editor-command="help" data-title="Markdown帮助">${ic('help')}</button>
   </div>
+  <span class="editor-upload-status" data-editor-upload-status role="status"></span>
   <input class="editor-files" data-editor-files type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple hidden>
 </div>
 <dialog class="editor-help-dialog" data-editor-help><div class="dialog-head"><h2 data-label="Markdown帮助">${L('Markdown帮助')}</h2><button type="button" data-help-close data-title="关闭">${ic('close')}</button></div><div class="editor-help-content markdown-body" data-help-content></div></dialog>`
@@ -451,15 +402,15 @@ function panelMarkup(name: PanelName, locale: 'zh' | 'en'): string {
     `<div class="editor-panel-actions"><button type="button" data-panel-action="cancel" class="editor-popover-cancel" data-label="取消">${L('取消')}</button><button type="button" data-panel-action="default" class="primary" data-label="插入" disabled>${L('插入')}</button></div>`
   switch (name) {
     case 'link':
-      return `${head('插入链接', '链接说明')}<div class="editor-popover-fields"><input id="editor-link-text" data-link-text type="text" placeholder="${L('链接文字')}" autocomplete="off"><input id="editor-link-url" data-link-url type="url" placeholder="https://example.com" autocomplete="off"></div><p class="editor-popover-hint" data-link-hint></p>${actions()}`
+      return `${head('插入链接', '链接说明')}<div class="editor-popover-fields"><input data-link-text type="text" placeholder="${L('链接文字')}" autocomplete="off"><input data-link-url type="url" placeholder="https://example.com" autocomplete="off"></div><p class="editor-popover-hint" data-link-hint></p>${actions()}`
     case 'table':
-      return `<div class="editor-popover-head"><strong data-label="插入表格">${L('插入表格')}</strong><small id="editor-table-hint" data-table-hint data-label="表格尺寸提示">${L('表格尺寸提示')}</small></div><div class="editor-table-grid" id="editor-table-grid" data-table-grid></div><div class="editor-panel-actions"><span class="editor-table-size"><span data-icon="table"></span><span id="editor-table-size" data-table-size data-label="直接点击目标尺寸">${L('直接点击目标尺寸')}</span></span><button type="button" data-panel-action="cancel" class="editor-popover-cancel" data-label="取消">${L('取消')}</button></div>`
+      return `<div class="editor-popover-head"><strong data-label="插入表格">${L('插入表格')}</strong><small data-table-hint data-label="表格尺寸提示">${L('表格尺寸提示')}</small></div><div class="editor-table-grid" data-table-grid></div><div class="editor-panel-actions"><span class="editor-table-size"><span data-icon="table"></span><span data-table-size data-label="直接点击目标尺寸">${L('直接点击目标尺寸')}</span></span><button type="button" data-panel-action="cancel" class="editor-popover-cancel" data-label="取消">${L('取消')}</button></div>`
     case 'media':
-      return `${head('插入媒体', '媒体说明')}<div class="editor-popover-fields"><input id="editor-media-url" data-media-url type="url" placeholder="https://example.com/video.mp4" autocomplete="off"></div><p class="editor-popover-hint" data-media-hint data-label="媒体提示空">${L('媒体提示空')}</p>${actions()}`
+      return `${head('插入媒体', '媒体说明')}<div class="editor-popover-fields"><input data-media-url type="url" placeholder="https://example.com/video.mp4" autocomplete="off"></div><p class="editor-popover-hint" data-media-hint data-label="媒体提示空">${L('媒体提示空')}</p>${actions()}`
     case 'spoiler':
       return `${head('插入剧透', '剧透说明')}<div class="editor-choice-list"><button type="button" data-editor-command="spoiler-block"><strong data-label="可折叠剧透">${L('可折叠剧透')}</strong><small data-label="可折叠剧透说明">${L('可折叠剧透说明')}</small></button><button type="button" data-editor-command="spoiler-mask"><strong data-label="点击遮罩">${L('点击遮罩')}</strong><small data-label="点击遮罩说明">${L('点击遮罩说明')}</small></button></div>`
     case 'image':
-      return `${head('我的图片', '图片说明')}<div class="editor-image-toolbar"><input type="search" data-library-search placeholder="${L('搜索图片')}" autocomplete="off"><button type="button" class="editor-image-upload" data-library-upload data-label="上传">${L('上传')}</button></div><div class="editor-image-target" data-library-target hidden><button type="button" class="active" data-library-mode="body" data-label="插正文">${L('插正文')}</button><button type="button" data-library-mode="gallery" data-label="加入附件">${L('加入附件')}</button></div><div class="editor-image-grid" data-library-grid></div><p class="editor-popover-hint" data-library-hint></p>`
+      return `${head('我的图片', '图片说明')}<div class="editor-image-toolbar"><input type="search" data-library-search placeholder="${L('搜索图片')}" autocomplete="off"><button type="button" class="editor-image-upload" data-library-upload data-label="上传">${L('上传')}</button></div><div class="editor-image-grid" data-library-grid></div><p class="editor-popover-hint" data-library-hint></p>`
     default:
       return ''
   }
@@ -486,48 +437,49 @@ export function renderEditorIcons(root: ParentNode): void {
 }
 
 export function createMarkdownEditor(root: HTMLElement, options: EditorOptions): MarkdownEditor {
-  let opts: EditorOptions = { locale: 'zh', format: 'moment', maxLength: 300, ...options }
-  const events = new AbortController()
+  let opts: EditorOptions = { locale: 'zh', maxLength: 300, ...options }
+  const document = root.ownerDocument
+  const window = document.defaultView!
+  const events = new window.AbortController()
   const on = (target: EventTarget | null, type: string, fn: (event: any) => void) =>
     target?.addEventListener(type, fn, { signal: events.signal })
 
-  // 官网已有同款静态 DOM 时直接接管；后台用内置模板生成同款皮肤。
-  const adopted =
-    root.matches('.compose-editor-shell') || !!root.querySelector('.compose-editor-shell')
-  if (!adopted) root.innerHTML = editorTemplate(opts.locale)
-  renderEditorIcons(root)
-  document.querySelectorAll<HTMLElement>('.editor-help-dialog').forEach(renderEditorIcons)
+  root.innerHTML = editorTemplate(opts.locale)
   root.classList.add('dawn-editor')
-
-  // 兼容官网静态 DOM（固定 id）与内置模板（data-*），选择器一次覆盖两种宿主。
-  const el = <T extends Element = HTMLElement>(selector: string): T =>
-    (root.querySelector<T>(selector) || document.querySelector<T>(selector)) as T
-  const shell = root.matches('.compose-editor-shell')
-    ? root
-    : el<HTMLElement>('.compose-editor-shell')
-  const body = el<HTMLElement>('[data-editor-body], .compose-editor, #moment-editor')
-  const input = el<HTMLTextAreaElement>('[data-editor-input], #moment-content')
-  const lines = el<HTMLElement>('[data-editor-lines], .editor-lines, #moment-lines')
-  const preview = el<HTMLElement>('[data-editor-preview], .markdown-preview, #moment-preview')
-  const toolbar = el<HTMLElement>('[data-editor-toolbar], .editor-toolbar, #moment-toolbar')
-  const tabs = el<HTMLElement>('[data-editor-tabs], .editor-head, #moment-editor-tabs')
-  const length = el<HTMLElement>('[data-editor-length], .editor-length, #moment-length')
-  const selectionBar = el<HTMLElement>(
-    '[data-editor-selection], .editor-selection-bar, #editor-selection-bar'
+  renderEditorIcons(root)
+  const el = <T extends HTMLElement = HTMLElement>(name: string) =>
+    root.querySelector<T>(`[data-editor-${name}]`)!
+  const shell = el('shell')
+  const body = el('body')
+  const input = el<HTMLTextAreaElement>('input')
+  const lines = el('lines')
+  const preview = el('preview')
+  const toolbar = el('toolbar')
+  const tabs = el('tabs')
+  const length = el('length')
+  const selectionBar = el('selection')
+  const mentionPanel = el('mentions')
+  const files = el<HTMLInputElement>('files')
+  const fullscreen = el('fullscreen')
+  // Keep overlays in the host dialog's top layer, outside the scrolling toolbar.
+  const layer = root.closest('dialog') || document.body
+  const menus = Array.from(toolbar.querySelectorAll<HTMLElement>('[data-editor-menu-panel]'))
+  const menuTriggers = new Map(
+    menus.map((menu) => [
+      menu,
+      toolbar.querySelector<HTMLButtonElement>(
+        `[data-editor-menu="${menu.dataset.editorMenuPanel}"]`
+      )!
+    ])
   )
-  const mentionPanel = el<HTMLElement>(
-    '[data-editor-mentions], .editor-mention-panel, #editor-mention-panel'
-  )
-  const files = el<HTMLInputElement>('[data-editor-files], .editor-files, #moment-editor-files')
-  const fullscreen = el<HTMLElement>('[data-editor-fullscreen], #moment-fullscreen')
-  // 浮层宿主：官网在原生 <dialog> 内（top layer），后台挂 body 避免被 ElDialog 裁剪。
-  const layer = (root.closest('dialog') || document.body) as HTMLElement
+  for (const [menu, trigger] of menuTriggers) {
+    trigger.ariaExpanded = 'false'
+    layer.append(menu)
+  }
   const panelNodes = {} as Record<PanelName, HTMLElement>
-  const instance = ++editorSeq
   for (const name of PANEL_NAMES) {
     const node = document.createElement('div')
     node.className = 'editor-panel editor-popover'
-    node.id = instance === 1 ? `editor-${name}-dialog` : `editor-${name}-dialog-${instance}`
     node.dataset.editorPanel = name
     node.hidden = true
     node.innerHTML = panelMarkup(name, opts.locale || 'zh')
@@ -536,258 +488,94 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     panelNodes[name] = node
   }
   const panels = PANEL_NAMES.map((name) => panelNodes[name])
-  if (selectionBar) layer.append(selectionBar)
-  // help 是模态弹窗：动态模板用自己 root 内那份，官网静态 DOM 用唯一的固定 id。
-  // 以前动态模板也写死同一个 id，多个编辑器实例会互相抢弹窗。
-  const ownHelp = root.querySelector<HTMLDialogElement>('[data-editor-help]')
-  if (ownHelp && !ownHelp.id) {
-    // 后台只有一个实例时沿用固定 id；官网已有静态那份就顺延，保证 id 全局唯一。
-    ownHelp.id = document.getElementById('editor-help-dialog')
-      ? `editor-help-dialog-${instance}`
-      : 'editor-help-dialog'
-  }
-  const helpDialog = (ownHelp ||
-    document.getElementById('editor-help-dialog') ||
-    document.querySelector<HTMLDialogElement>('.editor-help-dialog')) as HTMLDialogElement | null
+  layer.append(selectionBar)
+  const helpDialog = el<HTMLDialogElement>('help')
   const grid = panelNodes.table.querySelector<HTMLElement>('[data-table-grid]')!
   const inPanel = (name: PanelName, selector: string) =>
     panelNodes[name].querySelector<HTMLElement>(selector)
 
   const t = (key: string) => TEXT[key]?.[opts.locale === 'en' ? 1 : 0] ?? key
   const config = () => opts.config?.() || {}
-  // 官网按内容形式决定精简/完整；后台 alwaysFull 时两种格式都给完整编辑器。
-  const isPost = () => opts.format === 'post' || !!opts.alwaysFull
+  const fullEditor = () => !opts.compact
   let view: EditorView = 'write'
   let selection = { start: 0, end: 0 }
   let mentionTimer: ReturnType<typeof setTimeout> | undefined
   let destroyed = false
 
-  // ── 图片能力：provider 全可选；一个都不接时图片按钮仍是旧版「直接选文件」 ──
-  type Attachment = {
-    ref: number
-    name: string
-    url: string
-    file?: File
-    blob: boolean
-    status: 'pending' | 'done' | 'error'
-    target: 'body' | 'gallery'
-    record?: EditorImage
-  }
-  const ACCEPTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-  const attachments: Attachment[] = []
-  let refSeq = 0
-  let panelAnchor: HTMLElement | null = null
-  let libraryMode: 'body' | 'gallery' = 'body'
-  const attachBar = (opts.attachmentHost ||
-    Object.assign(document.createElement('div'), {
-      className: 'editor-attachments'
-    })) as HTMLElement
-  attachBar.classList.add('editor-attachments')
-  if (!attachBar.parentElement) shell.append(attachBar)
-  const ownAttachBar = !opts.attachmentHost
   const imagePanel = () => panelNodes.image
-  const enabledImages = () => !!(opts.imageLibrary || opts.imageUploader)
-  const imageTarget = (): 'body' | 'gallery' =>
-    opts.imageTarget === 'gallery'
-      ? 'gallery'
-      : opts.imageTarget === 'choose'
-        ? libraryMode
-        : 'body'
-  const imageMarkdown = (image: EditorImage, name: string) =>
-    (
-      opts.imageUploader?.toMarkdown ||
-      ((i, n) => `![${n || i.name || 'image'}](attachment://${i.id})`)
-    )(image, name)
-  const toolLabel = (tool: EditorTool) =>
-    Array.isArray(tool.title) ? tool.title[opts.locale === 'en' ? 1 : 0] : tool.title
+  const libraryHint = imagePanel().querySelector<HTMLElement>('[data-library-hint]')!
+  const ACCEPTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  let documentVersion = 0
+  const uploadStatus = root.querySelector<HTMLElement>('[data-editor-upload-status]')!
 
-  function emitImages() {
-    const ids = [
-      ...new Set(
-        attachments.filter((a) => a.status === 'done' && a.record).map((a) => String(a.record!.id))
-      )
-    ]
-    opts.onImagesChange?.(ids.map((id) => (/^\d+$/.test(id) ? Number(id) : id)))
-  }
-  function renderCustomTools(where: 'toolbar' | 'attachments') {
-    const host = where === 'toolbar' ? toolbar : attachBar
-    host
-      ?.querySelectorAll(`[data-editor-tool][data-editor-where="${where}"]`)
-      .forEach((node) => node.remove())
+  const imageMarkdown = (image: EditorImage, name: string) =>
+    opts.imageUploader?.toMarkdown?.(image, name) ??
+    `![${(name || image.name || t('图片')).replace(/[\\[\]]/g, '\\$&')}](<${image.url.replace(/[<>\s]/g, encodeURIComponent)}>)`
+
+  function renderCustomTools() {
+    toolbar.querySelectorAll('[data-editor-tool]').forEach((node) => node.remove())
     const hidden = config().hidden || []
     for (const tool of opts.customTools || []) {
-      const place = tool.where || 'toolbar'
-      if ((place !== where && place !== 'both') || hidden.includes(tool.key)) continue
+      if (hidden.includes(tool.key)) continue
       const button = document.createElement('button')
       button.type = 'button'
-      button.className =
-        where === 'toolbar' ? 'editor-tool editor-custom-tool' : 'editor-custom-tool'
+      button.className = 'editor-tool editor-custom-tool'
       button.dataset.editorTool = tool.key
-      button.dataset.editorWhere = where
-      button.title = toolLabel(tool)
+      button.title = Array.isArray(tool.title)
+        ? tool.title[opts.locale === 'en' ? 1 : 0]
+        : tool.title
       button.ariaLabel = button.title
       button.innerHTML = tool.icon?.startsWith('<')
         ? tool.icon
         : `<span data-icon="${tool.icon || 'plus'}"></span>`
       renderEditorIcons(button)
-      button.onclick = () => tool.onClick({ editor: api, anchor: button })
-      host?.append(button)
+      button.onclick = () => {
+        saveSelection()
+        tool.onClick({ editor: api, anchor: button })
+      }
+      toolbar.append(button)
     }
   }
-  function renderAttachments() {
-    attachBar.replaceChildren()
-    for (const item of attachments) {
-      const cell = document.createElement('div')
-      cell.className = `editor-attachment ${item.status}`
-      const image = document.createElement('img')
-      image.src = item.url
-      image.alt = item.name
-      image.onclick = () => opts.previewImage?.(item.record?.url || item.url)
-      const remove = document.createElement('button')
-      remove.type = 'button'
-      remove.className = 'editor-attachment-remove'
-      remove.title = t('移除')
-      remove.textContent = '×'
-      remove.onclick = () => removeAttachment(item.ref)
-      const label = document.createElement('small')
-      label.textContent =
-        item.status === 'pending'
-          ? t('正在上传')
-          : item.status === 'error'
-            ? t('上传失败')
-            : item.name
-      cell.append(image, remove, label)
-      attachBar.append(cell)
-    }
-    const add = document.createElement('button')
-    add.type = 'button'
-    add.className = 'editor-attachment-add'
-    add.dataset.editorLibrary = '1'
-    add.title = t('点击或拖入图片')
-    add.textContent = '+'
-    add.onclick = (event) => {
-      event.stopPropagation()
-      openImageLibrary(add)
-    }
-    attachBar.append(add)
-    renderCustomTools('attachments')
-    attachBar.hidden =
-      !enabledImages() && !(opts.customTools || []).some((tool) => tool.where !== 'toolbar')
-  }
-  function removeAttachment(ref: number) {
-    const index = attachments.findIndex((item) => item.ref === ref)
-    if (index < 0) return
-    const [item] = attachments.splice(index, 1)
-    if (item.blob) URL.revokeObjectURL(item.url)
-    if (item.record && item.target === 'body') {
-      const marker = `attachment://${item.record.id}`
-      input.value = input.value
-        .split('\n')
-        .filter((line) => !(line.includes('![') && line.includes(marker)))
-        .join('\n')
-      changed()
-    }
-    emitImages()
-    renderAttachments()
-  }
-  function addFiles(list: File[]) {
-    saveSelection()
-    const limit = Math.max(0, (opts.maxImages ?? 9) - attachments.length)
-    const picked = list.filter((file) => ACCEPTED.includes(file.type)).slice(0, limit)
-    if (!picked.length) return
-    const items: Attachment[] = picked.map((file) => ({
-      ref: ++refSeq,
-      name:
-        file.name ||
-        `Clipboard_Screenshot_${Date.now()}.${file.type === 'image/png' ? 'png' : 'jpg'}`,
-      file,
-      url: URL.createObjectURL(file),
-      blob: true,
-      status: 'pending',
-      target: imageTarget()
-    }))
-    attachments.push(...items)
-    renderAttachments()
-    // 没接 uploader 时保持旧契约：业务自己决定何时上传、插什么文本。
-    if (!opts.imageUploader) {
-      opts.upload?.(
-        items.map((item) => item.file!),
-        (text) => insert(text)
-      )
-      return
-    }
-    void uploadItems(items, { ...selection })
-  }
-  async function uploadItems(items: Attachment[], saved: { start: number; end: number }) {
-    const up = opts.imageUploader!
+
+  async function addFiles(files: File[]) {
+    const uploader = opts.imageUploader
+    const picked = files.filter((file) => ACCEPTED.includes(file.type))
+    if (!uploader || !picked.length) return
+    const version = documentVersion
+    const start = input.selectionStart
+    const end = input.selectionEnd
+    const value = input.value
+    uploadStatus.textContent = t('正在上传')
     try {
-      const prints = []
-      for (const item of items) prints.push(up.fingerprint ? await up.fingerprint(item.file!) : {})
-      const hits = up.check
-        ? await up.check(
-            items.map((item) => item.file!),
-            prints
-          )
-        : items.map(() => null)
-      const missing = items.filter((_, index) => !hits[index])
-      const fresh = missing.length
-        ? await up.upload(
-            missing.map((item) => item.file!),
+      const prints = await Promise.all(picked.map((file) => uploader.fingerprint?.(file) || {}))
+      const hits = (await uploader.check?.(picked, prints)) || picked.map(() => null)
+      const missing = picked.filter((_, index) => !hits[index])
+      const uploaded = missing.length
+        ? await uploader.upload(
+            missing,
             prints.filter((_, index) => !hits[index])
           )
         : []
-      let cursor = 0
-      items.forEach((item, index) => {
-        const record = hits[index] || fresh[cursor++]
-        if (!record) {
-          item.status = 'error'
-          return
-        }
-        if (item.blob) URL.revokeObjectURL(item.url)
-        item.record = record
-        item.url = record.url
-        item.blob = false
-        item.status = 'done'
-      })
-      const text = items
-        .filter((item) => item.status === 'done' && item.target === 'body')
-        .map((item) => imageMarkdown(item.record!, item.name))
+      if (destroyed || version !== documentVersion) return
+      const markdown = hits
+        .map((hit, index) => imageMarkdown(hit || uploaded.shift()!, picked[index].name))
         .join('\n')
-      if (text) {
-        selection = saved
-        insert(text)
-      }
+      if (input.value === value) selection = { start, end }
+      else saveSelection()
+      insert(markdown)
+      uploadStatus.textContent = ''
       opts.imageLibrary?.refresh?.()
+      closeFloatingPanels()
     } catch {
-      items.forEach((item) => {
-        item.status = 'error'
-      })
+      if (!destroyed && version === documentVersion) {
+        uploadStatus.textContent = t('上传失败')
+      }
     }
-    emitImages()
-    renderAttachments()
   }
-  function pickLibraryImage(record: EditorImage, target: 'body' | 'gallery') {
-    const item: Attachment = {
-      ref: ++refSeq,
-      name: record.name || '',
-      url: record.url,
-      status: 'done',
-      target,
-      record,
-      blob: false
-    }
-    attachments.push(item)
-    if (target === 'body') {
-      saveSelection()
-      insert(imageMarkdown(record, item.name))
-    }
-    emitImages()
-    renderAttachments()
-    closeFloatingPanels()
-  }
+
   async function loadLibrary(keyword = '') {
     const grid = imagePanel().querySelector<HTMLElement>('[data-library-grid]')!
-    const hint = imagePanel().querySelector<HTMLElement>('[data-library-hint]')!
+    const hint = libraryHint
     grid.replaceChildren()
     hint.textContent = ''
     if (!opts.imageLibrary) {
@@ -796,6 +584,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     }
     try {
       const rows = await opts.imageLibrary.list(keyword)
+      if (destroyed || keyword !== librarySearch.value.trim()) return
       if (!rows.length) {
         hint.textContent = t('暂无图片')
         return
@@ -809,7 +598,11 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
         image.alt = row.name || ''
         button.title = row.name || ''
         button.append(image)
-        button.onclick = () => pickLibraryImage(row, imageTarget())
+        button.onclick = () => {
+          saveSelection()
+          insert(imageMarkdown(row, row.name || ''))
+          closeFloatingPanels()
+        }
         grid.append(button)
       }
     } catch {
@@ -818,56 +611,27 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     // 网格是异步填充的，面板高度会变；不重新定位会盖住触发它的按钮。
     if (!imagePanel().hidden) positionPanel('image')
   }
-  function openImageLibrary(anchor?: HTMLElement) {
-    if (!enabledImages()) {
-      files.click()
-      return
-    }
-    panelAnchor = anchor || null
-    openPanel('image')
-  }
-  /** 编辑已有内容时回填附件区：只有 id/url，没有 File，绝不触发上传。 */
-  function setImages(images: EditorImage[]) {
-    attachments.splice(
-      0,
-      attachments.length,
-      ...images.map((image) => ({
-        ref: ++refSeq,
-        name: image.name || '',
-        url: image.url,
-        status: 'done' as const,
-        target: 'gallery' as const,
-        record: image,
-        blob: false
-      }))
-    )
-    renderAttachments()
-    emitImages()
-  }
-
   const api: MarkdownEditor = {
     getValue: () => input.value,
     setValue(text) {
-      input.value = text || ''
+      documentVersion++
+      uploadStatus.textContent = ''
+      closePanels()
+      input.value = text
       changed()
     },
     insertText(text) {
       insert(text)
     },
     setOptions(next) {
+      if (next.pasteImages === false && opts.pasteImages) {
+        documentVersion++
+        uploadStatus.textContent = ''
+      }
       opts = { ...opts, ...next }
       applyOptions()
     },
     focus: () => input.focus(),
-    getImages: () => [
-      ...new Set(
-        attachments
-          .filter((item) => item.status === 'done' && item.record)
-          .map((item) => item.record!.id)
-      )
-    ],
-    setImages,
-    openImageLibrary,
     destroy() {
       if (destroyed) return
       destroyed = true
@@ -877,12 +641,9 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
       panels.forEach((node) => node.remove())
       emojiPanel.remove()
       selectionBar?.remove()
-      attachments.forEach((item) => {
-        if (item.blob) URL.revokeObjectURL(item.url)
-      })
-      root.querySelectorAll('[data-editor-tool]').forEach((node) => node.remove())
-      if (ownAttachBar) attachBar.remove()
-      else attachBar.replaceChildren()
+      menus.forEach((menu) => menu.remove())
+      root.replaceChildren()
+      root.classList.remove('dawn-editor')
     }
   }
 
@@ -1029,7 +790,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
   }
   function syncSelectionBar() {
     if (!selectionBar) return
-    const show = isPost() && input.selectionStart !== input.selectionEnd
+    const show = fullEditor() && input.selectionStart !== input.selectionEnd
     const rect = show ? selectionRect() : null
     selectionBar.hidden = !rect
     if (!rect) return
@@ -1038,7 +799,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     const padding = 8
     const gap = 10
     const center = (rect.left + rect.right) / 2
-    const maxLeft = Math.max(padding + width / 2, innerWidth - padding - width / 2)
+    const maxLeft = Math.max(padding + width / 2, window.innerWidth - padding - width / 2)
     const left = Math.min(Math.max(center, padding + width / 2), maxLeft)
     const above = rect.top - height - gap > padding
     selectionBar.style.left = `${left}px`
@@ -1053,8 +814,9 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     const level = line.match(/^\s*(#{1,6})\s/)?.[1].length || 1
     const label = root.querySelector<HTMLElement>('.editor-heading-label')
     if (label) label.textContent = `H${Math.min(3, level)}`
-    root
-      .querySelectorAll<HTMLElement>('[data-editor-menu-panel="heading"] [data-value]')
+    menus
+      .find((menu) => menu.dataset.editorMenuPanel === 'heading')!
+      .querySelectorAll<HTMLElement>('[data-value]')
       .forEach((b) => b.classList.toggle('active', Number(b.dataset.value) === Math.min(3, level)))
   }
   function renderPreview() {
@@ -1071,7 +833,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     syncLines()
     syncLength()
     syncSelectionBar()
-    if (isPost()) renderPreview()
+    if (fullEditor() && view !== 'write') renderPreview()
     opts.onChange?.(input.value)
   }
   function setView(next: EditorView) {
@@ -1082,8 +844,8 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
       .querySelectorAll<HTMLElement>('[data-editor-view]')
       .forEach((b) => b.classList.toggle('active', b.dataset.editorView === next))
     input.hidden = next === 'preview'
-    preview.hidden = next === 'write' || !isPost()
-    if (next !== 'write' && isPost()) renderPreview()
+    preview.hidden = next === 'write' || !fullEditor()
+    if (next !== 'write' && fullEditor()) renderPreview()
   }
   /** 统一处理全屏状态：类名、提示文案与图标一起切换，避免 ESC 退出后图标不还原。 */
   function setFullscreen(full: boolean) {
@@ -1096,24 +858,34 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     fullscreen.innerHTML = full ? FULLSCREEN_ICONS.exit : FULLSCREEN_ICONS.enter
   }
   function applyOptions() {
-    shell.classList.toggle('post', isPost())
-    body.classList.toggle('post', isPost())
-    tabs.hidden = !isPost()
-    toolbar.hidden = !isPost()
+    shell.classList.toggle('post', fullEditor())
+    body.classList.toggle('post', fullEditor())
+    const hasImages = Boolean(opts.imageUploader || opts.imageLibrary)
+    imagePanel().querySelector<HTMLElement>('[data-library-upload]')!.hidden = !opts.imageUploader
+    tabs.hidden = !fullEditor()
+    toolbar.hidden = !fullEditor()
     // 切回「动态」精简模式时工具栏会消失，浮层失去锚点会被重定位到视口左上角；
     // 这里主动收起，避免留下一个脱离工具栏的悬空面板。
-    if (!isPost()) {
+    if (!fullEditor()) {
       closeFloatingPanels()
       closeEmoji()
+      closeMenus()
     }
+    input.placeholder = opts.placeholder || ''
     if (opts.maxLength) input.maxLength = opts.maxLength
     else input.removeAttribute('maxlength')
     const hidden = config().hidden || []
+    if (PANEL_NAMES.some((name) => hidden.includes(name) && !panelNodes[name].hidden))
+      closeFloatingPanels()
     toolbar.querySelectorAll<HTMLElement>('.editor-tool').forEach((button, index) => {
-      button.hidden = hidden.includes(TOOL_KEYS[index] || '')
+      const key = TOOL_KEYS[index]
+      button.hidden =
+        hidden.includes(button.dataset.editorTool || key) || (key === 'image' && !hasImages)
+      if (button.parentElement?.classList.contains('editor-tool-dropdown'))
+        button.parentElement.hidden = button.hidden
     })
     // 浮层挂在 root 外（官网在原生 dialog 内、后台在 body），语言包要一起覆盖。
-    const scopes: ParentNode[] = [root, ...panels]
+    const scopes: ParentNode[] = [root, ...panels, ...menus]
     scopes.forEach((scope) =>
       scope
         .querySelectorAll<HTMLElement>('[data-label]')
@@ -1131,9 +903,8 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     syncMediaHint()
     syncLength()
     syncLines()
-    renderCustomTools('toolbar')
-    renderAttachments()
-    setView(isPost() ? view : 'write')
+    renderCustomTools()
+    setView(fullEditor() ? view : 'write')
   }
   function syncToolActive() {
     PANEL_TOOL_KEYS.forEach((key) => {
@@ -1159,33 +930,37 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
   /** 与原版 updateFloatingPanelPosition 一致：锚定按钮，上方空间更宽裕时往上弹。 */
   function positionPanel(name: PanelName) {
     const node = panelNodes[name]
-    const button = (
-      name === 'image' && panelAnchor
-        ? panelAnchor
-        : toolbar?.querySelector<HTMLElement>(`[data-editor-command="${name}"]`)
-    ) as HTMLElement | null
-    if (node.hidden || !button) return
+    const button = toolbar.querySelector<HTMLElement>(`[data-editor-command="${name}"]`)!
+    if (!node.hidden) positionAt(node, button, PANEL_WIDTH[name])
+  }
+  function positionAt(node: HTMLElement, button: HTMLElement, preferredWidth: number) {
     const buttonRect = button.getBoundingClientRect()
     // 按钮被隐藏时（例如格式切换的瞬间）退回到编辑器主体，避免浮层跳到视口左上角。
     const rect = buttonRect.width && buttonRect.height ? buttonRect : shell.getBoundingClientRect()
     const padding = 12
     const gap = 12
-    const width = Math.min(PANEL_WIDTH[name], innerWidth - padding * 2)
+    const width = Math.min(preferredWidth, window.innerWidth - padding * 2)
     node.style.width = `${width}px`
     node.style.maxHeight = ''
     const height = node.offsetHeight || 240
     const above = Math.max(120, rect.top - padding - gap)
-    const below = Math.max(120, innerHeight - rect.bottom - padding - gap)
+    const below = Math.max(120, window.innerHeight - rect.bottom - padding - gap)
     const placeAbove = (above > below && height <= above) || (above > below && below < 180)
-    const maxHeight = Math.max(120, Math.min(placeAbove ? above : below, innerHeight - padding * 2))
+    const maxHeight = Math.max(
+      120,
+      Math.min(placeAbove ? above : below, window.innerHeight - padding * 2)
+    )
     const panelHeight = Math.min(height, maxHeight)
     node.style.maxHeight = `${maxHeight}px`
     const rawTop = placeAbove ? rect.top - gap - panelHeight : rect.bottom + gap
-    node.style.top = `${Math.min(Math.max(rawTop, padding), Math.max(padding, innerHeight - panelHeight - padding))}px`
-    node.style.left = `${Math.min(Math.max(rect.left, padding), Math.max(padding, innerWidth - width - padding))}px`
+    node.style.top = `${Math.min(Math.max(rawTop, padding), Math.max(padding, window.innerHeight - panelHeight - padding))}px`
+    node.style.left = `${Math.min(Math.max(rect.left, padding), Math.max(padding, window.innerWidth - width - padding))}px`
   }
   function positionFloatingPanels() {
     PANEL_NAMES.forEach((name) => positionPanel(name))
+    for (const [menu, trigger] of menuTriggers) {
+      if (menu.classList.contains('open')) positionAt(menu, trigger, 156)
+    }
     positionEmojiPanel()
     syncSelectionBar()
   }
@@ -1207,15 +982,8 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     if (name === 'link') prefillLink()
     if (name === 'media') syncMediaHint()
     node.hidden = false
-    if (name === 'image') {
-      const targetRow = node.querySelector<HTMLElement>('[data-library-target]')!
-      targetRow.hidden = opts.imageTarget !== 'choose'
-      libraryMode = opts.imageTarget === 'gallery' ? 'gallery' : 'body'
-      targetRow
-        .querySelectorAll<HTMLElement>('[data-library-mode]')
-        .forEach((button) =>
-          button.classList.toggle('active', button.dataset.libraryMode === libraryMode)
-        )
+    if (name === 'image' && opts.imageLibrary) {
+      librarySearch.value = ''
       void loadLibrary()
     }
     syncToolActive()
@@ -1224,7 +992,8 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
   function closePanels() {
     closeFloatingPanels()
     closeEmoji()
-    if (helpDialog?.open) helpDialog.close()
+    closeMenus()
+    if (helpDialog.open) helpDialog.close()
   }
   function renderHelp() {
     const en = opts.locale === 'en'
@@ -1232,9 +1001,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     const intro = en
       ? 'The editor supports CommonMark, code highlighting, task lists, spoilers, emoji and media markers. Toolbar, shortcuts and preview use the same rules.'
       : '编辑器支持 CommonMark、代码高亮、任务列表、剧透、表情和媒体标记。工具栏、快捷键和预览使用同一套规则。'
-    const content = helpDialog?.querySelector<HTMLElement>(
-      '[data-help-content], #editor-help-content'
-    )
+    const content = helpDialog?.querySelector<HTMLElement>('[data-help-content]')
     if (!content) return
     content.innerHTML = `<h1>${title}</h1><blockquote>${intro}</blockquote>${helpSections(en)
       .map(
@@ -1259,7 +1026,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
 
   // 表情面板：内核自带完整数据，浮层锚定工具栏按钮。官网挂原生 dialog 内，
   // 避免被 top layer 遮挡；后台没有原生 dialog，挂 body 并靠 z-index 浮在上层。
-  const emojiButton = el<HTMLElement>('[data-editor-command="emoji"]')
+  const emojiButton = toolbar.querySelector<HTMLElement>('[data-editor-command="emoji"]')!
   const emojiPanel = document.createElement('div')
   emojiPanel.className = 'editor-emoji-popover'
   emojiPanel.dataset.emojiPanel = ''
@@ -1399,9 +1166,9 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     if (emojiPanel.hidden || !rect) return
     const width = emojiPanel.offsetWidth || 348
     const height = emojiPanel.offsetHeight || 320
-    emojiPanel.style.left = `${Math.max(8, Math.min(rect.left, innerWidth - width - 8))}px`
+    emojiPanel.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))}px`
     const below = rect.bottom + 8
-    emojiPanel.style.top = `${below + height > innerHeight - 8 ? Math.max(8, rect.top - height - 8) : below}px`
+    emojiPanel.style.top = `${below + height > window.innerHeight - 8 ? Math.max(8, rect.top - height - 8) : below}px`
   }
   function openEmoji() {
     closeFloatingPanels()
@@ -1431,7 +1198,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
   })
   on(emojiScroll, 'scroll', syncActiveGroupFromScroll)
   // 滚轮事件在默认滚动前派发，下一帧再同步一次，保证高亮跟手（scroll 事件兜底）。
-  on(emojiScroll, 'wheel', () => requestAnimationFrame(syncActiveGroupFromScroll))
+  on(emojiScroll, 'wheel', () => window.requestAnimationFrame(syncActiveGroupFromScroll))
   on(emojiPanel.querySelector('[data-emoji-close]'), 'click', closeEmoji)
   on(window, 'resize', positionFloatingPanels)
   window.addEventListener('scroll', positionFloatingPanels, {
@@ -1532,16 +1299,9 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
   const mediaUrl = inPanel('media', '[data-media-url]') as HTMLInputElement
   const mediaHint = inPanel('media', '[data-media-hint]')!
   const mediaInsert = inPanel('media', '[data-panel-action="default"]') as HTMLButtonElement
-  const EMBED_HOSTS = new Set([
-    'player.bilibili.com',
-    'www.bilibili.com',
-    'music.163.com',
-    'www.youtube.com',
-    'youtube.com',
-    'youtu.be',
-    'v.qq.com'
-  ])
-  function mediaMarker(raw: string): { text: string; hint: string } | null {
+  function mediaMarker(
+    raw: string
+  ): { url: string; type: 'audio' | 'video' | 'iframe'; hint: string } | null {
     const value = raw.trim()
     if (!value) return null
     let url: URL
@@ -1556,18 +1316,20 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
       : url.toString()
     const path = url.pathname.toLowerCase()
     if (/\.(mp4|webm|ogg|mov|m3u8)$/.test(path))
-      return { text: `MEDIA::video::${src}`, hint: t('媒体提示视频') }
+      return { url: src, type: 'video', hint: t('媒体提示视频') }
     if (/\.(mp3|wav|m4a|aac|flac)$/.test(path))
-      return { text: `MEDIA::audio::${src}`, hint: t('媒体提示音频') }
-    if (EMBED_HOSTS.has(url.hostname))
-      return { text: `MEDIA::iframe::${src}`, hint: t('媒体提示站点') }
-    return { text: `MEDIA::iframe::${src}`, hint: t('媒体提示兜底') }
+      return { url: src, type: 'audio', hint: t('媒体提示音频') }
+    return { url: src, type: 'iframe', hint: t('媒体提示兜底') }
   }
   function syncMediaHint() {
     const marker = mediaMarker(mediaUrl.value)
     mediaHint.textContent = !mediaUrl.value.trim()
       ? t('媒体提示空')
-      : marker?.hint || t('媒体提示无效')
+      : marker
+        ? opts.mediaMarkup
+          ? marker.hint
+          : t('插入链接')
+        : t('媒体提示无效')
     mediaInsert.disabled = !marker
   }
   on(linkUrl, 'input', syncLinkHint)
@@ -1643,14 +1405,16 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
         openPanel('help')
         break
       case 'image':
-        openImageLibrary()
+        if (opts.imageLibrary) openPanel('image')
+        else if (opts.imageUploader) files.click()
         break
     }
   }
   function closeMenus() {
-    document
-      .querySelectorAll<HTMLElement>('.editor-menu.open')
-      .forEach((menu) => menu.classList.remove('open'))
+    for (const [menu, trigger] of menuTriggers) {
+      menu.classList.remove('open')
+      trigger.ariaExpanded = 'false'
+    }
   }
   const bindCommands = (node: EventTarget | null) =>
     on(node, 'click', (event: MouseEvent) => {
@@ -1669,25 +1433,54 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     closeFloatingPanels()
     closeEmoji()
     if (menuButton.dataset.editorMenu === 'heading') syncHeadingMenu()
-    const current = root.querySelector<HTMLElement>(
-      `[data-editor-menu-panel="${menuButton.dataset.editorMenu}"]`
-    )
-    document.querySelectorAll<HTMLElement>('.editor-menu.open').forEach((menu) => {
-      if (menu !== current) menu.classList.remove('open')
-    })
-    current?.classList.toggle('open')
+    const current = menus.find(
+      (menu) => menu.dataset.editorMenuPanel === menuButton.dataset.editorMenu
+    )!
+    const wasOpen = current.classList.contains('open')
+    closeMenus()
+    if (wasOpen) return
+    current.classList.add('open')
+    menuButton.ariaExpanded = 'true'
+    positionAt(current, menuButton, 156)
+    current.querySelector('button')?.focus()
   })
+  for (const [menu, trigger] of menuTriggers) {
+    bindCommands(menu)
+    on(menu, 'keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMenus()
+        trigger.focus()
+        event.preventDefault()
+        event.stopPropagation()
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        const buttons = Array.from(menu.querySelectorAll('button'))
+        const active = buttons.indexOf(document.activeElement as HTMLButtonElement)
+        event.preventDefault()
+        buttons[
+          (active + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length
+        ].focus()
+      }
+    })
+    on(menu, 'focusout', (event: FocusEvent) => {
+      if (
+        menu.classList.contains('open') &&
+        event.relatedTarget !== trigger &&
+        !menu.contains(event.relatedTarget as Node)
+      )
+        closeMenus()
+    })
+  }
   bindCommands(toolbar)
   bindCommands(selectionBar)
   bindCommands(panelNodes.spoiler)
   on(document, 'click', (event: MouseEvent) => {
     const target = event.target as HTMLElement
-    if (!target.closest('.editor-tool-dropdown')) closeMenus()
+    if (!target.closest('.editor-tool-dropdown, .editor-menu')) closeMenus()
     // 原版：点浮层外面收起；点浮层内、或点打开它的工具栏按钮都不收起。
     const opener = target.closest<HTMLElement>('[data-editor-command]')
     const isPanelTool = !!opener && PANEL_TOOL_KEYS.includes(opener.dataset.editorCommand || '')
     // `+` 与自定义工具按钮都是浮层 opener，点击冒泡到 document 时不能被当成「点外部」立刻收起。
-    const isLibraryOpener = !!target.closest('[data-editor-library], [data-editor-tool]')
+    const isLibraryOpener = !!target.closest('[data-editor-tool]')
     const insideFloating = !!target.closest('.editor-popover, [data-emoji-panel]')
     if (!insideFloating && !isPanelTool && !isLibraryOpener) {
       closeFloatingPanels()
@@ -1715,14 +1508,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
   })
   on(imagePanel(), 'click', (event: MouseEvent) => {
     const target = event.target as HTMLElement
-    const mode = target.closest<HTMLElement>('[data-library-mode]')
-    if (mode) {
-      libraryMode = mode.dataset.libraryMode as 'body' | 'gallery'
-      imagePanel()
-        .querySelectorAll<HTMLElement>('[data-library-mode]')
-        .forEach((button) => button.classList.toggle('active', button === mode))
-    } else if (target.closest('[data-library-upload]')) files.click()
-    else if (target.closest('[data-library-retry]')) void loadLibrary(librarySearch.value.trim())
+    if (target.closest('[data-library-upload]')) files.click()
   })
 
   // 面板按钮一律 type=button：编辑器常嵌在宿主 <form> 内（后台 ElForm、
@@ -1738,7 +1524,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
           if (url) insert((s) => `[${linkText.value.trim() || s || t('链接文字占位')}](${url})`)
         } else if (node === panelNodes.media) {
           const marker = mediaMarker(mediaUrl.value)
-          if (marker) insert(marker.text)
+          if (marker) insert(opts.mediaMarkup?.(marker.url, marker.type) ?? `<${marker.url}>`)
         }
       }
       closeFloatingPanels()
@@ -1751,9 +1537,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
       if (button && !button.disabled) button.click()
     })
   })
-  on(helpDialog?.querySelector('[data-help-close], #editor-help-close') || null, 'click', () =>
-    helpDialog?.close()
-  )
+  on(helpDialog?.querySelector('[data-help-close]') || null, 'click', () => helpDialog?.close())
 
   // tooltip
   root.querySelectorAll<HTMLElement>('.editor-tool[data-title]').forEach((button) => {
@@ -1767,7 +1551,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
       tip.innerHTML = `<strong>${t(key)}</strong>${data[0] ? `<kbd>${data[0]}</kbd>` : ''}<small>${opts.locale === 'en' ? data[2] : data[1]}</small>`
       ;(button.closest('dialog') || document.body).append(tip)
       const rect = button.getBoundingClientRect()
-      tip.style.left = `${Math.max(8, Math.min(innerWidth - tip.offsetWidth - 8, rect.left + rect.width / 2 - tip.offsetWidth / 2))}px`
+      tip.style.left = `${Math.max(8, Math.min(window.innerWidth - tip.offsetWidth - 8, rect.left + rect.width / 2 - tip.offsetWidth / 2))}px`
       tip.style.top = `${Math.max(8, rect.top - tip.offsetHeight - 8)}px`
       ;(button as any)._editorTip = tip
     })
@@ -1782,7 +1566,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     clearTimeout(mentionTimer)
     const pos = input.selectionStart
     const match =
-      isPost() && input.value.slice(0, pos).match(/(?:^|[^\w@])@([\w\u4e00-\u9fa5-]{0,30})$/)
+      fullEditor() && input.value.slice(0, pos).match(/(?:^|[^\w@])@([\w\u4e00-\u9fa5-]{0,30})$/)
     if (!match) {
       mentionPanel.hidden = true
       return
@@ -1843,7 +1627,7 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
       }
       mentionPanel.hidden = true
     }
-    if (!isPost()) return
+    if (!fullEditor()) return
     if (key === 'enter' && !event.metaKey && !event.ctrlKey) {
       const line = input.value.slice(input.value.lastIndexOf('\n', Math.max(0, pos - 1)) + 1, pos)
       const match = line.match(/^(\s*)([-*+]|\d+\.)\s+(\[[ xX]\]\s+)?/)
@@ -1910,7 +1694,8 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     else if (key === 'm' && event.altKey) insert((s) => `$${s || 'E = mc^2'}$`)
     else if (key === 'm' && event.shiftKey) insert((s) => `$$\n${s || 'E = mc^2'}\n$$`)
     else if (key === 'l' && event.altKey) insert((s) => `<center>${s || t('文本')}</center>`)
-    else if (key === 'i' && event.shiftKey) files.click()
+    else if (key === 'i' && event.shiftKey && !config().hidden?.includes('image'))
+      runCommand('image')
     else if (key === 'q' && event.shiftKey) linePrefix('> ')
     else if (key === 'l' && event.shiftKey) list('unordered')
     else if (key === 'o' && event.shiftKey) list('ordered')
@@ -1935,27 +1720,28 @@ export function createMarkdownEditor(root: HTMLElement, options: EditorOptions):
     return (fromFiles.length ? fromFiles : fromItems).filter((file) => ACCEPTED.includes(file.type))
   }
   on(input, 'paste', (event: ClipboardEvent) => {
+    if (!opts.pasteImages || !opts.imageUploader) return
     const picked = imageFiles(event)
     if (!picked.length) return // 纯文本粘贴照旧
     event.preventDefault()
     addFiles(picked)
   })
-  const bindDrop = (host: HTMLElement | null) => {
-    on(host, 'dragover', (event: DragEvent) => {
+  on(shell, 'dragover', (event: DragEvent) => {
+    if (
+      opts.imageUploader &&
+      !config().hidden?.includes('image') &&
+      event.dataTransfer?.types.includes('Files')
+    )
       event.preventDefault()
-      host?.classList.add('dragover')
-    })
-    on(host, 'dragleave', () => host?.classList.remove('dragover'))
-    on(host, 'drop', (event: DragEvent) => {
-      event.preventDefault()
-      event.stopPropagation()
-      host?.classList.remove('dragover')
-      const picked = imageFiles(event)
-      if (picked.length) addFiles(picked)
-    })
-  }
-  bindDrop(shell)
-  if (!shell.contains(attachBar)) bindDrop(attachBar)
+  })
+  on(shell, 'drop', (event: DragEvent) => {
+    if (!opts.imageUploader || config().hidden?.includes('image')) return
+    const picked = imageFiles(event)
+    if (!picked.length) return
+    event.preventDefault()
+    event.stopPropagation()
+    void addFiles(picked)
+  })
 
   applyOptions()
   setFullscreen(false)

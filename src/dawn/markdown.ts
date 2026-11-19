@@ -96,10 +96,11 @@ export function renderChatMarkdown(text: string): string {
 // 编辑器预览用的通用渲染：保留图片、表格与代码块，HTML 仍按文本处理。
 const preview = new MarkdownIt({ html: false, breaks: true, linkify: true })
 preview.renderer.rules.link_open = chat.renderer.rules.link_open
-preview.renderer.rules.image = (tokens, index, options, _env, renderer) => {
+const renderImage = preview.renderer.rules.image!
+preview.renderer.rules.image = (tokens, index, options, env, renderer) => {
   tokens[index].attrSet('loading', 'lazy')
   tokens[index].attrJoin('class', 'md-image')
-  return renderer.renderToken(tokens, index, options)
+  return renderImage(tokens, index, options, env, renderer)
 }
 
 export function renderMarkdown(text: string): string {
