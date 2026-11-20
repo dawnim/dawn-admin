@@ -69,6 +69,58 @@
             /></div>
           </div> </ElCard
       ></ElCol>
+      <ElCol :span="24" class="mb-4">
+        <ElCard class="art-table-card" shadow="never">
+          <template #header>
+            <div class="embedding-header">
+              <span class="text-lg font-medium">{{ t('向量服务') }}</span>
+              <ElTag :type="embedding.health?.ready ? 'success' : 'info'">{{
+                embeddingStatus
+              }}</ElTag>
+            </div>
+          </template>
+          <template v-if="embedding.enabled">
+            <div class="mb-4">{{ embedding.health?.model || '—' }}</div>
+            <ElDescriptions :column="2" border>
+              <ElDescriptionsItem
+                v-for="item in embeddingFields"
+                :key="item.label"
+                :label="t(item.label)"
+              >
+                {{ item.value ?? '—' }}
+              </ElDescriptionsItem>
+            </ElDescriptions>
+            <ElAlert
+              v-if="embedding.error || embedding.service?.last_error"
+              class="mt-4"
+              type="warning"
+              :closable="false"
+              :title="embedding.error || embedding.service?.last_error"
+            />
+          </template>
+          <div v-if="embedding.indexes?.length" class="embedding-indexes">
+            <div class="font-medium mb-3">{{ t('知识索引') }}</div>
+            <div v-for="index in embedding.indexes" :key="index.id" class="embedding-index">
+              <div
+                >{{ index.app_name }} · {{ t(indexStatus[index.status] || index.status) }} ·
+                {{ index.model }} / {{ index.dimensions }}</div
+              >
+              <ElProgress
+                v-if="index.status === 'building'"
+                :percentage="index.total ? Math.round((index.completed * 100) / index.total) : 0"
+              />
+              <small>{{ index.completed }} / {{ index.total }} · {{ index.error || '' }}</small>
+            </div>
+          </div>
+          <ElAlert
+            v-if="embedding.indexes_error"
+            class="mt-4"
+            type="warning"
+            :closable="false"
+            :title="embedding.indexes_error"
+          />
+        </ElCard>
+      </ElCol>
       <ElCol :span="24" class="mb-4"
         ><ElCard class="art-table-card" shadow="never">
           <template #header
@@ -159,6 +211,47 @@
     WaitCount: '等待次数'
   }
   const bytes = (v = 0) => `${(v / 1024 / 1024).toFixed(2)} MB`
+  const embedding = computed(() => info.value.embedding || {})
+  const embeddingStatus = computed(() => {
+    if (!embedding.value.enabled) return t('未启用')
+    if (embedding.value.health?.ready) return t('运行中')
+    if (['starting', 'waiting'].includes(embedding.value.service?.state)) return t('启动中')
+    return t('不可用')
+  })
+  const indexStatus: Record<string, string> = {
+    active: '使用中',
+    building: '构建中',
+    failed: '构建失败',
+    cleanup: '待清理'
+  }
+  const embeddingFields = computed(() => {
+    const health = embedding.value.health || {}
+    const service = embedding.value.service || {}
+    const process = service.process?.children?.[0] || {}
+    return [
+      { label: '进程PID', value: process.pid },
+      { label: '向量维度', value: health.dimensions },
+      {
+        label: 'CPU使用率',
+        value: process.cpu_percent == null ? '—' : process.cpu_percent.toFixed(2) + '%'
+      },
+      { label: '运行设备', value: health.device },
+      { label: '常驻内存', value: process.rss_bytes == null ? '—' : bytes(process.rss_bytes) },
+      { label: '最大输入长度', value: health.max_length },
+      { label: '线程数', value: process.threads },
+      { label: '推理线程数', value: health.threads },
+      { label: '模型文件', value: health.model_bytes == null ? '—' : bytes(health.model_bytes) },
+      { label: '缓存目录', value: health.cache_bytes == null ? '—' : bytes(health.cache_bytes) },
+      {
+        label: '运行时长',
+        value: process.started_at
+          ? ((Date.now() - process.started_at) / 3600000).toFixed(2) + 'h'
+          : '—'
+      },
+      { label: '重启次数', value: service.restarts }
+    ]
+  })
+
   const hostSummary = computed(() => {
     const system = info.value.system
     return [
@@ -221,6 +314,23 @@
 </script>
 
 <style scoped>
+  .embedding-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .embedding-indexes {
+    margin-top: 20px;
+  }
+  .embedding-index {
+    margin-top: 12px;
+  }
+  .embedding-index small {
+    color: var(--el-text-color-secondary);
+  }
+
   .host-summary {
     font-size: 14px;
     line-height: 1.8;
